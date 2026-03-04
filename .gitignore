@@ -1,0 +1,45 @@
+# C++ build artifacts
+*.o
+*.obj
+*.so
+*.a
+*.dylib
+*.out
+*.exe
+*.d
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+.eggs/
+*.whl
+.venv/
+venv/
+env/
+.env
+
+# Shell
+*.log
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code
+CLAUDE.md
+
+# OS
+.DS_Store
+Thumbs.db
