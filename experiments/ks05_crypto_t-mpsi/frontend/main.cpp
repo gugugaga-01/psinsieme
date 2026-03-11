@@ -1,6 +1,6 @@
 // main.cpp
 
-#include "../psi/OtMpsi.h"
+#include "../psi/TMpsi.h"
 #include "../psi/Logger.h"
 #include "cryptoTools/Common/CLP.h"
 #include "cryptoTools/Common/Timer.h"
@@ -217,8 +217,8 @@ int main(int argc, char **argv)
         }
 
         // Initialize PSI objects once
-        OtMpPsiLeader leader;
-        OtMpPsiMember member;
+        TMpsiLeader leader;
+        TMpsiMember member;
         OcPRNG sharedPrng(commonSeed);                            // PRNG for shared items
         OcPRNG uniquePrng(commonSeed ^ oc::toBlock(partyID + 1)); // PRNG for unique items
         if (isLeader)

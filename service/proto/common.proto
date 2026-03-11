@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package mpsi;
+
+// A single Paillier ciphertext (serialized as raw bytes)
+message Ciphertext {
+    bytes data = 1;
+}
+
+// Status codes for protocol operations
+enum StatusCode {
+    STATUS_OK = 0;
+    STATUS_ERROR = 1;
+    STATUS_TIMEOUT = 2;
+    STATUS_INVALID_PARAMS = 3;
+}
+
+message Status {
+    StatusCode code = 1;
+    string message = 2;
+}

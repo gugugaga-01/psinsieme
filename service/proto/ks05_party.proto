@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package mpsi.ks05;
+
+// Inter-party communication service for the KS05 T-MPSI protocol.
+// Each party runs this service; other parties connect as clients.
+service Ks05PartyService {
+    // Generic bidirectional channel for protocol messages.
+    // The protocol logic sends/receives bytes and u64 values over this stream.
+    // Message ordering is preserved within a single stream.
+    rpc ProtocolChannel(stream ChannelMessage) returns (stream ChannelMessage);
+}
+
+// A single message on the protocol channel.
+// Can carry either raw bytes (serialized ciphertexts) or a u64 value (sizes, counts).
+message ChannelMessage {
+    oneof payload {
+        bytes data = 1;
+        uint64 value = 2;
+    }
+}

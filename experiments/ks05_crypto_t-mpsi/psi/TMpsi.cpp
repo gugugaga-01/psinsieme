@@ -1,4 +1,4 @@
-#include "OtMpsi.h"
+#include "TMpsi.h"
 #include "Logger.h"
 #include "Defines.h"
 #include "cryptoTools/Common/CuckooIndex.h"
@@ -25,7 +25,7 @@ inline void DeserializeFromString(const std::string &in, Ciphertext &ct, const P
     ct = NTL::ZZFromBytes(reinterpret_cast<const unsigned char *>(in.data()), in.size());
 }
 
-void OtMpPsiBase::init(u64 numberOfParties,
+void TMpsiBase::init(u64 numberOfParties,
                        u64 threshold,
                        u64 partyID,
                        u64 senderSize,
@@ -47,10 +47,10 @@ void OtMpPsiBase::init(u64 numberOfParties,
     InitializeCrypto(numberOfParties, zzSeed);
 }
 
-Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
+Proto TMpsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
 {
     Logger &logger = Logger::getInstance();
-    setTimePoint("OtMpPsiMember::Run begin");
+    setTimePoint("TMpsiMember::Run begin");
     logger.log("Member ", mPartyID, " begins");
 
     // ============================================================
@@ -74,7 +74,7 @@ Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
     Polynomial poly = encodeAsPolynomial(roots, mPubKey.n);
 
     logger.log("Member ", mPartyID, " encoded ", inputs.size(), " inputs as polynomial of degree ", poly.degree());
-    setTimePoint("OtMpPsiMember::Run encoded inputs");
+    setTimePoint("TMpsiMember::Run encoded inputs");
 
     // ============================================================
     // Step 2: Pre-encrypt zeros for rerandomization
@@ -109,7 +109,7 @@ Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Member ", mPartyID, " pre-encrypted ", totalZerosNeeded, " zeros");
-    setTimePoint("OtMpPsiMember::Run pre-encrypted zeros");
+    setTimePoint("TMpsiMember::Run pre-encrypted zeros");
 
     // ============================================================
     // Step 3: Polynomial aggregation via ring topology
@@ -177,7 +177,7 @@ Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Member ", mPartyID, " completed polynomial aggregation");
-    setTimePoint("OtMpPsiMember::Run aggregation complete");
+    setTimePoint("TMpsiMember::Run aggregation complete");
 
     // ============================================================
     // Step 4: Receive aggregated polynomial from leader
@@ -203,7 +203,7 @@ Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
 
     PaillierPolynomial encPolyOriginal(coeffs, mPubKey);
     logger.log("Member ", mPartyID, " received polynomial, degree: ", encPolyOriginal.degree());
-    setTimePoint("OtMpPsiMember::Run received polynomial");
+    setTimePoint("TMpsiMember::Run received polynomial");
 
     // ============================================================
     // Step 5: Compute (threshold-1)-th derivative for threshold-PSI
@@ -220,7 +220,7 @@ Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Member ", mPartyID, " completed derivative, degree: ", encPolyDerivative.degree());
-    setTimePoint("OtMpPsiMember::Run computed derivative");
+    setTimePoint("TMpsiMember::Run computed derivative");
 
     // ============================================================
     // Step 6: Blind polynomial to hide member's inputs
@@ -288,7 +288,7 @@ Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
 
     // Combine: p × r_i + p^(t-1) × (F × poly × s_i)
     blindedPoly.addPoly(derivativePart);
-    setTimePoint("OtMpPsiMember::Run blinding complete");
+    setTimePoint("TMpsiMember::Run blinding complete");
 
     // Rerandomize before sending to leader
     u64 numCoeffsToRerand = blindedPoly.coefficients.size();
@@ -298,7 +298,7 @@ Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Member ", mPartyID, " completed blinding");
-    setTimePoint("OtMpPsiMember::Run rerandomized");
+    setTimePoint("TMpsiMember::Run rerandomized");
 
     // ============================================================
     // Step 7: Send blinded polynomial to leader
@@ -314,7 +314,7 @@ Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Member ", mPartyID, " sent blinded polynomial");
-    setTimePoint("OtMpPsiMember::Run sent blinded polynomial");
+    setTimePoint("TMpsiMember::Run sent blinded polynomial");
 
     // ============================================================
     // Step 8: Joint decryption
@@ -338,7 +338,7 @@ Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
         ciphertexts.push_back(ct);
     }
 
-    setTimePoint("OtMpPsiMember::Run received ciphertexts");
+    setTimePoint("TMpsiMember::Run received ciphertexts");
 
     // Perform partial decryption
     std::vector<Ciphertext> partialDecryptions;
@@ -350,7 +350,7 @@ Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Member ", mPartyID, " performed partial decryption");
-    setTimePoint("OtMpPsiMember::Run partial decryption");
+    setTimePoint("TMpsiMember::Run partial decryption");
 
     // Send partial decryptions back to leader
     coproto::sync_wait(chls[leaderChl].send(numCiphertexts));
@@ -362,29 +362,29 @@ Proto OtMpPsiMember::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Member ", mPartyID, " completed");
-    setTimePoint("OtMpPsiMember::Run complete");
+    setTimePoint("TMpsiMember::Run complete");
 
     co_return;
 }
 
-void OtMpPsiMember::InitializeCrypto(u64 n, const ZZ &seed)
+void TMpsiMember::InitializeCrypto(u64 n, const ZZ &seed)
 {
     std::vector<PrivKey> allSecretKeys;
     distributedKeyGen(2048, n, seed, mPubKey, allSecretKeys);
     mPrivKey = allSecretKeys[mPartyID];
 }
 
-void OtMpPsiMember::Sync(std::vector<Socket> &chls)
+void TMpsiMember::Sync(std::vector<Socket> &chls)
 {
     std::string dummy;
     chls[0].recvResize(dummy);
 }
 
-Proto OtMpPsiLeader::Run(span<block> inputs, std::vector<Socket> &chls)
+Proto TMpsiLeader::Run(span<block> inputs, std::vector<Socket> &chls)
 {
     Logger &logger = Logger::getInstance();
     logger.log("Leader begins");
-    setTimePoint("OtMpPsiLeader::Run begin");
+    setTimePoint("TMpsiLeader::Run begin");
 
     const size_t numMembers = chls.size();
 
@@ -431,7 +431,7 @@ Proto OtMpPsiLeader::Run(span<block> inputs, std::vector<Socket> &chls)
 
     PaillierPolynomial encPoly(encrypted_coeffs, mPubKey);
     logger.log("Leader encrypted polynomial, degree: ", encPoly.degree());
-    setTimePoint("OtMpPsiLeader::Run encoded inputs");
+    setTimePoint("TMpsiLeader::Run encoded inputs");
 
     // ============================================================
     // Step 2: Ring aggregation - initiate polynomial multiplication
@@ -453,7 +453,7 @@ Proto OtMpPsiLeader::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Leader sent polynomial to first party");
-    setTimePoint("OtMpPsiLeader::Run sent to ring");
+    setTimePoint("TMpsiLeader::Run sent to ring");
 
     // Receive aggregated polynomial from last party in ring
     numCoeffs = 0;
@@ -476,7 +476,7 @@ Proto OtMpPsiLeader::Run(span<block> inputs, std::vector<Socket> &chls)
 
     encPoly = PaillierPolynomial(coeffs, mPubKey);
     logger.log("Leader received aggregated polynomial, degree: ", encPoly.degree());
-    setTimePoint("OtMpPsiLeader::Run received from ring");
+    setTimePoint("TMpsiLeader::Run received from ring");
 
     // ============================================================
     // Step 3: Broadcast aggregated polynomial to all members
@@ -510,7 +510,7 @@ Proto OtMpPsiLeader::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Leader broadcasted polynomial to all members");
-    setTimePoint("OtMpPsiLeader::Run broadcasted");
+    setTimePoint("TMpsiLeader::Run broadcasted");
 
     // ============================================================
     // Step 4: Receive blinded polynomials from all members
@@ -558,7 +558,7 @@ Proto OtMpPsiLeader::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Leader received blinded polynomials");
-    setTimePoint("OtMpPsiLeader::Run received blinded");
+    setTimePoint("TMpsiLeader::Run received blinded");
 
     // ============================================================
     // Step 5: Sum all blinded polynomials
@@ -571,7 +571,7 @@ Proto OtMpPsiLeader::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Leader summed blinded polynomials, degree: ", summedPoly.degree());
-    setTimePoint("OtMpPsiLeader::Run summed");
+    setTimePoint("TMpsiLeader::Run summed");
 
     // ============================================================
     // Step 6: Joint decryption
@@ -684,19 +684,15 @@ Proto OtMpPsiLeader::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Leader completed joint decryption");
-    setTimePoint("OtMpPsiLeader::Run decrypted");
+    setTimePoint("TMpsiLeader::Run decrypted");
 
     // ============================================================
     // Step 7: Find intersection by polynomial evaluation
     // ============================================================
-    // Note: The original OT-MPSI paper does not specify which polynomial factorization
+    // Note: The original paper does not specify which polynomial factorization
     // algorithm to use for root extraction. Polynomial factorization is computationally
     // expensive. Instead, we implement a simpler evaluation-based approach:
     // evaluate the decrypted polynomial at each leader input and check for zeros.
-    //
-    // This makes effectively a Threshold-MPSI (T-MPSI) rather than
-    // a full OT-MPSI, but provides better performance while maintaining the
-    // threshold privacy guarantee.
     Polynomial decryptedPoly(decryptedResults);
     logger.log("Leader reconstructed polynomial, degree: ", decryptedPoly.degree());
 
@@ -720,14 +716,14 @@ Proto OtMpPsiLeader::Run(span<block> inputs, std::vector<Socket> &chls)
     }
 
     logger.log("Leader found intersection: ", intersection.size(), " / ", inputs.size());
-    setTimePoint("OtMpPsiLeader::Run found intersection");
-    setTimePoint("OtMpPsiLeader::Run complete");
+    setTimePoint("TMpsiLeader::Run found intersection");
+    setTimePoint("TMpsiLeader::Run complete");
     logger.log(getTimer());
 
     co_return;
 }
 
-void OtMpPsiLeader::InitializeCrypto(u64 n, const ZZ &seed)
+void TMpsiLeader::InitializeCrypto(u64 n, const ZZ &seed)
 {
     if (mNumberOfParties < 2)
         throw std::invalid_argument("mNumberOfParties must be >= 2");
@@ -743,7 +739,7 @@ void OtMpPsiLeader::InitializeCrypto(u64 n, const ZZ &seed)
     mPrivKey = allSecretKeys[leaderIdx];
 }
 
-void OtMpPsiLeader::Sync(std::vector<Socket> &chls)
+void TMpsiLeader::Sync(std::vector<Socket> &chls)
 {
     std::vector<std::thread> pThreads;
     pThreads.reserve(mNumberOfParties - 1);

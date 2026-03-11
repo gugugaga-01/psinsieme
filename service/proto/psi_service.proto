@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package mpsi;
+
+import "common.proto";
+
+// Client-facing PSI service.
+// Each party runs this service to accept input from its data owner.
+service PsiService {
+    // Submit input set and wait for protocol completion.
+    // Blocks until all parties have submitted and protocol finishes.
+    // Returns intersection (non-empty only for the leader party).
+    rpc ComputeIntersection(ComputeRequest) returns (ComputeResponse);
+}
+
+enum Role {
+    MEMBER = 0;
+    LEADER = 1;
+    DEALER = 2;
+}
+
+message ComputeRequest {
+    // Protocol to use: "ks05_t_mpsi", "yyh26_tt_mpsi", etc.
+    string protocol = 1;
+
+    // Number of parties participating
+    uint64 num_parties = 2;
+
+    // Threshold: elements in >= threshold parties are in the result
+    uint64 threshold = 3;
+
+    // Input set elements (arbitrary strings, hashed internally)
+    repeated string elements = 4;
+
+    // This party's role in the protocol
+    Role role = 5;
+
+    // Inter-party address of the leader.
+    // All parties must agree on this value.
+    string leader_address = 6;
+}
+
+message ComputeResponse {
+    // Intersection elements (non-empty only for leader)
+    repeated string intersection = 1;
+
+    // Operation status
+    mpsi.Status status = 2;
+}
