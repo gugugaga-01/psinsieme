@@ -1,8 +1,8 @@
-# OT-MPSI Implementation (ks04)
+# T-MPSI Implementation (KS05)
 
 ## Overview
 
-This is a research implementation of over-threshold multi-party private set intersection (OT-MPSI) using the Kissner-Song polynomial framework.
+This is a research implementation of threshold multi-party private set intersection (T-MPSI) using the Kissner-Song polynomial framework.
 
 **Research Purpose**: For experimental and benchmarking purposes only.
 
@@ -32,7 +32,7 @@ make clean
 # Build the executable
 make
 
-# Binary will be at: bin/ot_mpsi
+# Binary will be at: bin/t_mpsi
 ```
 
 **Note**: Adjust `Makefile` if needed for your system's library paths.
@@ -61,19 +61,19 @@ Start the leader **first** (it acts as the server):
 
 **Terminal 1 - Leader (Party 2)**:
 ```bash
-./bin/ot_mpsi -partyID 2 -numParties 3 -threshold 2 \
+./bin/t_mpsi -partyID 2 -numParties 3 -threshold 2 \
   -senderSize 8 -receiverSize 8 -debug
 ```
 
 **Terminal 2 - Member 0**:
 ```bash
-./bin/ot_mpsi -partyID 0 -numParties 3 -threshold 2 \
+./bin/t_mpsi -partyID 0 -numParties 3 -threshold 2 \
   -senderSize 8 -receiverSize 8 -debug
 ```
 
 **Terminal 3 - Member 1**:
 ```bash
-./bin/ot_mpsi -partyID 1 -numParties 3 -threshold 2 \
+./bin/t_mpsi -partyID 1 -numParties 3 -threshold 2 \
   -senderSize 8 -receiverSize 8 -debug
 ```
 
@@ -104,7 +104,7 @@ python3 tools/run_benchmark.py \
 ```
 
 **Parameters**:
-- `--binPath`: Path to binary (default: `bin/ot_mpsi`)
+- `--binPath`: Path to binary (default: `bin/t_mpsi`)
 - `--numParties`: Number of parties
 - `--threshold`: Threshold value (default: ⌈n/2⌉)
 - `--senderSize`: Exponent for sender size (set size = 2^senderSize)
@@ -151,4 +151,4 @@ The script:
 
 ---
 
-**Disclaimer**: This is research code for experimental purposes. Not production-ready.
+**Disclaimer**: This is research code for experimental purposes.

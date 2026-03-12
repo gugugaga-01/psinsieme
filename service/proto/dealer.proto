@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package mpsi;
+
+import "common.proto";
+
+// Key dealer service.
+//
+// SECURITY-CRITICAL: The dealer generates the Paillier modulus N=pq and all
+// threshold secret key shares.  It temporarily holds the factorization and
+// all shares during key generation.  After distributing shares, the dealer
+// MUST wipe all sensitive material.
+//
+// For Paillier-based protocols (e.g. KS05 T-MPSI), truly distributed key
+// generation — where no single party learns the factorization — requires
+// distributed biprime generation (Boneh-Franklin 1997), a complex MPC
+// protocol.  Until that is implemented, a trusted dealer is required.
+//
+// The dealer can be run by:
+//   - A mutually agreed neutral third party
+//   - One of the participants (with explicit trust acknowledgment)
+//   - A secure enclave or HSM
+service KeyDealer {
+    // Request this party's key share.  The dealer generates keys on the first
+    // request and caches them until all parties have collected their shares.
+    rpc GetKeyShare(KeyShareRequest) returns (KeyShareResponse);
+}
+
+message KeyShareRequest {
+    // Which party is requesting (0-indexed)
+    uint64 party_id = 1;
+
+    // Total number of parties (must match across all requests)
+    uint64 num_parties = 2;
+
+    // Protocol identifier (determines key type and parameters)
+    string protocol = 3;
+}
+
+message KeyShareResponse {
+    // Paillier public key components (all parties receive the same PK)
+    bytes public_key_n = 1;
+    bytes public_key_theta = 2;
+    bytes public_key_delta = 3;
+
+    // This party's individual secret key share (unique per party)
+    bytes secret_key_share = 4;
+
+    mpsi.Status status = 5;
+}

@@ -4,7 +4,7 @@
 #include "Defines.h"
 #include "paillier.h"
 
-struct OtMpPsiBase
+struct TMpsiBase
 {
     u64 mNumberOfParties;
     u64 mThreshold;
@@ -33,7 +33,7 @@ struct OtMpPsiBase
     virtual void Sync(std::vector<Socket> &chls) = 0;
 };
 
-class OtMpPsiMember : public OtMpPsiBase, public oc::TimerAdapter
+class TMpsiMember : public TMpsiBase, public oc::TimerAdapter
 {
 public:
     Proto Run(span<block> inputs, std::vector<Socket> &chls);
@@ -42,7 +42,7 @@ public:
     void Sync(std::vector<Socket> &chls) override;
 };
 
-class OtMpPsiLeader : public OtMpPsiBase, public oc::TimerAdapter
+class TMpsiLeader : public TMpsiBase, public oc::TimerAdapter
 {
 public:
     Proto Run(span<block> inputs, std::vector<Socket> &chls);

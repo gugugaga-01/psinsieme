@@ -9,7 +9,7 @@ import shutil
 
 def main():
     parser = argparse.ArgumentParser(description="Run mp_psi parties for benchmarking.")
-    parser.add_argument('--binPath', default='bin/ot_mpsi', help='Path to the ot_mpsi binary')
+    parser.add_argument('--binPath', default='bin/t_mpsi', help='Path to the t_mpsi binary')
     parser.add_argument('--numParties', type=int, required=True, help='Number of parties')
     parser.add_argument('--threshold', type=int, help='Intersection threshold')
     parser.add_argument('--senderSize', type=int, required=True, help='Exponent to define 2^m for sender sizes')
