@@ -47,3 +47,15 @@ add_test(NAME ks05_grpc_tls COMMAND test_ks05_grpc --tls
 add_executable(test_grpc_minimal ks05/test_grpc_minimal.cpp)
 target_link_libraries(test_grpc_minimal PRIVATE mpsi_core mpsi_proto)
 add_test(NAME grpc_minimal COMMAND test_grpc_minimal)
+
+# === YYH26 TT-MPSI Tests ===
+if(MPSI_BUILD_YYH26)
+    add_executable(test_yyh26_tt_mpsi yyh26/test_tt_mpsi.cpp)
+    target_include_directories(test_yyh26_tt_mpsi PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+        ${NTL_INCLUDE_DIR}
+    )
+    target_link_libraries(test_yyh26_tt_mpsi PRIVATE
+        yyh26_protocol ${NTL_LIBRARY} ${GMP_LIBRARY} GTest::gtest_main)
+    gtest_discover_tests(test_yyh26_tt_mpsi)
+endif()

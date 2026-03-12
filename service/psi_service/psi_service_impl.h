@@ -7,6 +7,10 @@
 #include "ks05_t_mpsi/protocol/t_mpsi.h"
 #include "ks05_t_mpsi/protocol/logger.h"
 
+#ifdef MPSI_HAS_YYH26
+#include "yyh26_tt_mpsi/protocol/tt_mpsi.h"
+#endif
+
 #include <grpcpp/grpcpp.h>
 #include <mutex>
 #include <condition_variable>
@@ -35,10 +39,10 @@ struct PartyConfig {
     std::string client_listen_addr;
     TlsConfig client_tls;
 
-    // Dealer address (empty = no dealer, error at runtime)
+    // Dealer address (empty = no dealer; KS05 protocol unavailable)
     std::string dealer_addr;
 
-    // Protocol name (default: "ks05_t_mpsi")
+    // Default protocol (clients can override per-request)
     std::string protocol = "ks05_t_mpsi";
 };
 
@@ -131,12 +135,25 @@ public:
 
         ks05::Logger::getInstance().setEnabled(true);
 
-        // Validate request
-        if (request->protocol() != config_.protocol) {
+        // Determine which protocol to run (per-request, with fallback to config)
+        std::string protocol = request->protocol();
+        if (protocol.empty())
+            protocol = config_.protocol;
+
+        // Validate protocol name
+        std::vector<std::string> supported = {"ks05_t_mpsi"};
+#ifdef MPSI_HAS_YYH26
+        supported.push_back("yyh26_tt_mpsi");
+#endif
+        if (std::find(supported.begin(), supported.end(), protocol) == supported.end()) {
             auto* status = response->mutable_status();
             status->set_code(STATUS_INVALID_PARAMS);
-            status->set_message("Protocol mismatch: this party runs " +
-                config_.protocol + ", got " + request->protocol());
+            std::string msg = "Unsupported protocol: " + protocol + ". Supported: ";
+            for (size_t i = 0; i < supported.size(); i++) {
+                if (i > 0) msg += ", ";
+                msg += supported[i];
+            }
+            status->set_message(msg);
             return grpc::Status::OK;
         }
 
@@ -170,7 +187,7 @@ public:
             return grpc::Status::OK;
         }
 
-        if (!has_keys_) {
+        if (protocol == "ks05_t_mpsi" && !has_keys_) {
             auto* status = response->mutable_status();
             status->set_code(STATUS_ERROR);
             status->set_message("No keys available. Start a dealer first.");
@@ -218,6 +235,33 @@ public:
         uint64_t setSize = inputs.size();
 
         try {
+#ifdef MPSI_HAS_YYH26
+            if (protocol == "yyh26_tt_mpsi") {
+                // Convert ZZ inputs to string elements for yyh26
+                std::vector<std::string> str_elements;
+                str_elements.reserve(request->elements_size());
+                for (const auto& elem : request->elements())
+                    str_elements.push_back(elem);
+
+                if (is_leader) {
+                    auto result = runYYH26Leader(str_elements, threshold, leader_id);
+
+                    for (const auto& elem : result)
+                        response->add_intersection(elem);
+
+                    auto* status = response->mutable_status();
+                    status->set_code(STATUS_OK);
+                    status->set_message("Intersection computed: " +
+                        std::to_string(result.size()) + " elements");
+                } else {
+                    runYYH26Member(str_elements, threshold, leader_id);
+
+                    auto* status = response->mutable_status();
+                    status->set_code(STATUS_OK);
+                    status->set_message("Protocol completed (member, no intersection returned)");
+                }
+            } else
+#endif
             if (is_leader) {
                 auto result = runLeader(inputs, threshold, setSize, member_ids);
 
@@ -368,6 +412,54 @@ private:
 
         inter_server.shutdown();
     }
+
+#ifdef MPSI_HAS_YYH26
+    std::vector<std::string> runYYH26Leader(const std::vector<std::string>& inputs,
+                                             uint64_t threshold,
+                                             uint64_t leader_id) {
+        yyh26::TTMpsiConfig cfg;
+        cfg.numParties = config_.num_parties;
+        cfg.threshold = threshold;
+        cfg.partyID = config_.party_id;
+
+        // Derive TCP ports from inter-party addresses.
+        // Use a base port offset from the party config to avoid collisions.
+        cfg.tcpBasePort = 11000 + static_cast<uint32_t>(leader_id * 1000);
+
+        // Map party IDs to hostnames from inter-party addresses.
+        for (uint64_t i = 0; i < config_.party_addresses.size(); i++) {
+            auto addr = config_.party_addresses[i];
+            auto colon = addr.rfind(':');
+            cfg.partyHostnames[i] = (colon != std::string::npos)
+                ? addr.substr(0, colon) : addr;
+        }
+
+        yyh26::TTMpsiLeader leader;
+        leader.init(cfg);
+        return leader.run(inputs);
+    }
+
+    void runYYH26Member(const std::vector<std::string>& inputs,
+                         uint64_t threshold,
+                         uint64_t leader_id) {
+        yyh26::TTMpsiConfig cfg;
+        cfg.numParties = config_.num_parties;
+        cfg.threshold = threshold;
+        cfg.partyID = config_.party_id;
+        cfg.tcpBasePort = 11000 + static_cast<uint32_t>(leader_id * 1000);
+
+        for (uint64_t i = 0; i < config_.party_addresses.size(); i++) {
+            auto addr = config_.party_addresses[i];
+            auto colon = addr.rfind(':');
+            cfg.partyHostnames[i] = (colon != std::string::npos)
+                ? addr.substr(0, colon) : addr;
+        }
+
+        yyh26::TTMpsiMember member;
+        member.init(cfg);
+        member.run(inputs);
+    }
+#endif
 
     PartyConfig config_;
     ks05::PubKey pub_key_;

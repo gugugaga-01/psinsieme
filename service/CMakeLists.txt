@@ -96,12 +96,65 @@ target_include_directories(ks05_protocol PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ks05_protocol PUBLIC ks05_crypto mpsi_core)
 target_link_libraries(ks05_protocol PRIVATE pthread)
 
+# yyh26 TT-MPSI protocol (optional, requires experiments libraries)
+option(MPSI_BUILD_YYH26 "Build YYH26 TT-MPSI protocol support" OFF)
+
+if(MPSI_BUILD_YYH26)
+    set(YYH26_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../experiments/yyh26_ndss_tt-mpsi")
+
+    # Verify experiments libraries exist
+    if(NOT EXISTS "${YYH26_ROOT}/lib/liblibOTe.a")
+        message(FATAL_ERROR
+            "YYH26 experiments libraries not found at ${YYH26_ROOT}/lib/\n"
+            "Build experiments first:\n"
+            "  cd experiments/yyh26_ndss_tt-mpsi && mkdir -p build && cd build\n"
+            "  cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)")
+    endif()
+
+    add_library(yyh26_protocol
+        yyh26_tt_mpsi/protocol/tt_mpsi.cpp
+    )
+
+    target_include_directories(yyh26_protocol PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    target_include_directories(yyh26_protocol PRIVATE
+        ${YYH26_ROOT}/cryptoTools
+        ${YYH26_ROOT}/libOTe
+        ${YYH26_ROOT}/libOPRF
+        ${YYH26_ROOT}/libOLE/src/lib
+        ${YYH26_ROOT}/libOLE/third_party/cryptoTools
+        ${YYH26_ROOT}/thirdparty/linux/miracl/miracl/include
+        ${YYH26_ROOT}/frontend
+        ${NTL_INCLUDE_DIR}
+    )
+
+    target_link_libraries(yyh26_protocol PRIVATE
+        ${YYH26_ROOT}/lib/liblibOPRF.a
+        ${YYH26_ROOT}/lib/liblibOTe.a
+        ${YYH26_ROOT}/lib/libcryptoTools.a
+        ${YYH26_ROOT}/libOLE/bin/lib/libgazelle.so
+        ${YYH26_ROOT}/libOLE/third_party/cryptoTools/lib/libcryptoTools.a
+        ${YYH26_ROOT}/thirdparty/linux/miracl/miracl/source/libmiracl.a
+        ${NTL_LIBRARY} ${GMP_LIBRARY}
+        boost_system boost_thread pthread
+    )
+
+    target_compile_definitions(yyh26_protocol PUBLIC MPSI_HAS_YYH26=1)
+    target_compile_options(yyh26_protocol PRIVATE -maes -msse2 -msse4.1 -mpclmul)
+endif()
+
 # psi_party binary (client-facing PsiService + inter-party protocol)
 add_executable(psi_party
     psi_service/main.cpp
 )
 target_include_directories(psi_party PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(psi_party PRIVATE ks05_protocol ks05_crypto mpsi_core mpsi_proto pthread)
+
+if(MPSI_BUILD_YYH26)
+    target_link_libraries(psi_party PRIVATE yyh26_protocol)
+    target_compile_definitions(psi_party PRIVATE MPSI_HAS_YYH26=1)
+endif()
 
 # psi_dealer binary (trusted key dealer service)
 add_executable(psi_dealer
