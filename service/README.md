@@ -137,10 +137,33 @@ with PsiClient("10.0.0.1:50090") as client:
 
 When TLS is enabled, all communication (inter-party, dealer, client-facing) uses mutual TLS.
 
-```bash
-# Generate a private CA and per-party certificates
-bash service/certs/gen_certs.sh 3 certs/my_certs
+### Generating certificates
 
+The included `gen_certs.sh` script creates a self-signed CA and per-party/dealer certificates:
+
+```bash
+bash service/certs/gen_certs.sh 3 certs/my_certs
+```
+
+This generates the following files in `certs/my_certs/`:
+
+```
+ca.pem / ca-key.pem            # Certificate Authority
+party0.pem / party0-key.pem    # Party 0 (CN=party0)
+party1.pem / party1-key.pem    # Party 1 (CN=party1)
+party2.pem / party2-key.pem    # Party 2 (CN=party2)
+dealer.pem / dealer-key.pem    # Dealer  (CN=dealer)
+```
+
+Each certificate includes SANs for `localhost` and `127.0.0.1`, so they work out of the box on a single machine. For multi-machine deployments, edit the script to add the appropriate hostnames or IPs.
+
+Certificate CN must match the party's index from sorted address order: `party0`, `party1`, etc. The dealer CN must be `dealer`.
+
+### Starting services with TLS
+
+Pass `--certs-dir` to both the dealer and party binaries. Each process loads `ca.pem` for verification, and its own cert/key pair based on its identity:
+
+```bash
 # Dealer with TLS
 ./psi_dealer --parties 3 --listen 0.0.0.0:53050 --certs-dir certs/my_certs
 
@@ -150,8 +173,6 @@ bash service/certs/gen_certs.sh 3 certs/my_certs
             --dealer 10.0.0.1:53050 --listen 0.0.0.0:50090 \
             --certs-dir certs/my_certs
 ```
-
-Certificate CN must be `party{index}` (index from sorted address order). Dealer CN must be `dealer`.
 
 ```python
 # Python client with mTLS
