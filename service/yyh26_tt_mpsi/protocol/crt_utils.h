@@ -84,17 +84,4 @@ inline ui128 crtReplicate(ui128 element) {
     return result;
 }
 
-// Reduce a 128-bit value modulo each CRT prime and pack into CRT slots.
-// Unlike crtReplicate (which copies the low 32 bits verbatim), this properly
-// reduces a large value mod each distinct CRT prime.
-inline ui128 crtReduceAndPack(ui128 value) {
-    ui128 result = 0;
-    for (size_t i = 0; i < NUM_CRT; i++) {
-        uint64_t shift = (3 - i) * 32;
-        uint64_t reduced = static_cast<uint64_t>(value % CRT_MODULI[i]);
-        result |= static_cast<ui128>(reduced) << shift;
-    }
-    return result;
-}
-
 } // namespace mpsi::yyh26

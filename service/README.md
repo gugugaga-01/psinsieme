@@ -76,12 +76,12 @@ Each data owner runs one `psi_party` process:
 - Addresses are merged and sorted internally for consistent index assignment.
 
 ```bash
-# With dealer
+# With dealer (enables KS05, also supports YYH26 if built with -DMPSI_BUILD_YYH26=ON)
 ./psi_party --address 10.0.0.1:53000 \
             --addresses 10.0.0.2:53000,10.0.0.3:53000 \
             --dealer 10.0.0.1:53050 --listen 0.0.0.0:50090
 
-# Without dealer
+# Without dealer (YYH26 only)
 ./psi_party --address 10.0.0.1:53000 \
             --addresses 10.0.0.2:53000,10.0.0.3:53000 \
             --listen 0.0.0.0:50090
@@ -183,22 +183,14 @@ Each party must include `--dealer` to fetch keys:
 
 The YYH26 threshold TT-MPSI protocol (NDSS 2026) uses OPPRF, OT extensions (KKRT), and BFV-based BOLE for threshold secret sharing. It does **not** require a dealer.
 
-### Building prerequisites
+### Building the experiments binary
 
-YYH26 links against pre-built libraries from the experiments directory. Build them first:
+YYH26 requires the experiments binary to be built separately:
 
 ```bash
 cd experiments/yyh26_ndss_tt-mpsi
 mkdir -p build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
-```
-
-Then build the service with YYH26 enabled:
-
-```bash
-cd build
-cmake ../service -DMPSI_BUILD_YYH26=ON
 make -j$(nproc)
 ```
 
@@ -212,6 +204,13 @@ Start parties without `--dealer`:
 ./psi_party --address 10.0.0.1:53000 \
             --addresses 10.0.0.2:53000,10.0.0.3:53000 \
             --listen 0.0.0.0:50090
+```
+
+Set environment variables if the experiments binary is not at the default location:
+
+```bash
+export MPSI_YYH26_BINARY_PATH=/path/to/experiments/yyh26_ndss_tt-mpsi/bin/frontend.exe
+export MPSI_YYH26_LIB_PATH=/path/to/experiments/yyh26_ndss_tt-mpsi/libOLE/bin/lib
 ```
 
 Python client usage specifies `protocol="yyh26_tt_mpsi"`:
@@ -237,8 +236,9 @@ with PsiClient("10.0.0.1:50090") as client:
 
 ### Current limitations
 
+- **Subprocess-based**: The service launches the experiments binary (`frontend.exe`) as a subprocess. Custom input passing requires extending the experiments binary with `-f`/`-o` flags (not yet implemented).
 - **Unencrypted TCP**: Internal crypto channels between parties use unencrypted TCP via cryptoTools' BtEndpoint (ports 11000+). Protocol-level crypto (OT, BFV) protects data confidentiality, but traffic is not transport-encrypted. Deploy on trusted networks or use external tunneling.
-- **Localhost only**: TCP connections currently use `"localhost"`. Multi-machine deployments require configurable hostnames (tracked as future work).
+- **Localhost only**: The experiments binary currently hardcodes `"localhost"` for TCP connections. Multi-machine deployments require modifying the experiments code to accept configurable hostnames.
 
 ## mTLS
 
