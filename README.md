@@ -22,6 +22,7 @@ multiparty-psi-protocols-experimental/
     ├── proto/            # Protobuf definitions
     ├── core/             # Shared transport layer
     ├── ks05_t_mpsi/     # KS05 protocol implementation
+    ├── yyh26_tt_mpsi/   # YYH26 TT-MPSI protocol implementation
     ├── psi_service/      # Client-facing gRPC service (psi_party binary)
     ├── dealer/           # Key dealer service (psi_dealer binary)
     ├── clients/python/   # Python client SDK
