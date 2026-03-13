@@ -41,6 +41,11 @@ service/certs/test/
 *.swo
 *~
 
+# YYH26 runtime artifacts
+experiments/yyh26_ndss_tt-mpsi/input/
+experiments/yyh26_ndss_tt-mpsi/runtime_*.txt
+experiments/yyh26_ndss_tt-mpsi/time_*.txt
+
 # Claude Code
 CLAUDE.md
 
