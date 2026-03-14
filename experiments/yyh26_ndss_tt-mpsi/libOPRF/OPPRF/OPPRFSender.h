@@ -1,5 +1,6 @@
 #pragma once
 #include "Common/Defines.h"
+#include "../yyh26_compat.h"
 #include "Network/Channel.h"
 #include "NChooseOne/NcoOtExt.h"
 #include "Hashing/SimpleHasher1.h"

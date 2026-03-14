@@ -1,97 +1,75 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required(VERSION 3.10)
+project(yyh26_tt_mpsi_v2)
 
-project("libPSI")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/lib)
 
-
-set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/bin)
-set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/lib)
-set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/lib)
-
-
-#############################################
-#            Flag and #defines              #
-#############################################
 add_definitions(-DSOLUTION_DIR=\"${CMAKE_SOURCE_DIR}\")
-set(CMAKE_C_FLAGS "-ffunction-sections -Wall  -maes -msse2 -msse4.1 -mpclmul -Wfatal-errors -pthread")
-set(CMAKE_CXX_FLAGS  "${CMAKE_C_FLAGS}  -std=c++14")
+set(CMAKE_C_FLAGS "-ffunction-sections -Wall -maes -msse2 -msse4.1 -mpclmul -Wfatal-errors -pthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17")
 
-# Set a default build type for single-configuration
-# CMake generators if no build type is set.
-if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
-   SET(CMAKE_BUILD_TYPE Release)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
+
+# ── Local deps (self-contained, no external dependency) ──
+set(DEPS_DIR "${CMAKE_SOURCE_DIR}/deps")
+
+# OPPRF-side headers (osuCrypto namespace): cryptoTools, libOTe
+include_directories("${DEPS_DIR}/include/cryptoTools_opprf")
+include_directories("${DEPS_DIR}/include/libOTe")
+
+# Miracl headers (referenced as "miracl/include/miracl.h" from Curve.h)
+include_directories("${DEPS_DIR}/include/miracl")
+
+# OLE-side headers (osuCryptoNew namespace): cryptoTools for libOLE
+include_directories("${DEPS_DIR}/include/cryptoTools_ole")
+
+# Gazelle/OLE headers (pke/ole.h, math/dcrt.h, etc.)
+include_directories("${DEPS_DIR}/include/gazelle")
+
+# Pre-built libraries
+link_directories("${DEPS_DIR}/lib")
+
+find_library(LIB_GAZELLE NAMES gazelle PATHS "${DEPS_DIR}/lib" NO_DEFAULT_PATH)
+find_library(LIB_CRYPTO_OLE NAMES cryptoTools_ole PATHS "${DEPS_DIR}/lib" NO_DEFAULT_PATH)
+
+if(NOT LIB_GAZELLE OR NOT LIB_CRYPTO_OLE)
+    message(FATAL_ERROR "Pre-built deps not found in deps/lib/. See README.")
 endif()
 
-if(NOT ${CMAKE_BUILD_TYPE} STREQUAL "Release")
-  message(WARNING "\nConfiguration NOT set to Release. Please call cmake with CMAKE_BUILD_TYPE=Release")
-endif()
+# ── NTL / GMP / Boost (system) ──
+find_library(NTL_LIB ntl PATHS /usr/local/lib)
+find_library(GMP_LIB gmp)
+include_directories(/usr/local/include)
 
-# Select flags.
-SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
-SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
-SET(CMAKE_CXX_FLAGS_DEBUG  "-O0 -g")
-
-
-#############################################
-#       Library/includes locations          #
-#############################################
-
-# default location for libOTe
-set(libOTe_Dirs "${CMAKE_SOURCE_DIR}/libOTe/")
-include_directories("${libOTe_Dirs}/libOTe/") 
-link_directories("${libOTe_Dirs}/lib/")
-
-# default location for miracl
-set(Miracl_Dirs "${CMAKE_SOURCE_DIR}/thirdparty/linux/miracl/")
-include_directories("${Miracl_Dirs}") 
-link_directories("${Miracl_Dirs}/miracl/source/")
-
-# default location for NTL
-# set(NTL_Dirs "${CMAKE_SOURCE_DIR}/thirdparty/linux/ntl/")
-# include_directories("${NTL_Dirs}/include/")
-# link_directories("${NTL_Dirs}/src/") 
-
-set(NTL_Dirs "/usr/local")
-include_directories("${NTL_Dirs}/include/")
-link_directories("${NTL_Dirs}/lib/")
-
-# default location for Boost
-set(BOOST_ROOT "${CMAKE_SOURCE_DIR}/thirdparty/linux/boost/")
 find_package(Boost REQUIRED COMPONENTS system thread)
 
+# ── Build libOPRF (local copy) ──
+include_directories("${CMAKE_SOURCE_DIR}/libOPRF")
+file(GLOB_RECURSE OPPRF_SRCS libOPRF/*.cpp)
+add_library(libOPRF_v2 ${OPPRF_SRCS})
+target_link_libraries(libOPRF_v2 libOTe cryptoTools ${NTL_LIB} ${GMP_LIB})
 
-#############################################
-#            Build cryptoTools              #
-#############################################
-add_subdirectory(cryptoTools)
-include_directories(cryptoTools)
+# ── Build main executable ──
+file(GLOB_RECURSE MAIN_SRCS src/*.cpp)
+add_executable(yyh26_v2.exe ${MAIN_SRCS})
 
-#############################################
-#               Build libOTe                #
-#############################################
-add_subdirectory(libOTe)
-include_directories(libOTe)
+target_include_directories(yyh26_v2.exe PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
-
-#############################################
-#               Build libOPRF                 #
-#############################################
-add_subdirectory(libOPRF)
-include_directories(libOPRF)
-
-
-#############################################
-#           Build libPSI Tests              #
-#############################################
-#add_subdirectory(libPSI_Tests)
-#include_directories(libPSI_Tests)
-include_directories(libOLE/third_party/cryptoTools)
-
-
-include_directories(libOLE/bin/lib)
-
-#############################################
-#              Build Frontend               #
-#############################################
-add_subdirectory(frontend)
-
-
+target_link_libraries(yyh26_v2.exe
+    libOPRF_v2
+    libOTe
+    cryptoTools
+    ${LIB_CRYPTO_OLE}
+    ${LIB_GAZELLE}
+    ${NTL_LIB}
+    ${GMP_LIB}
+    Boost::system
+    Boost::thread
+    miracl
+    mpfr gmpxx benchmark pthread rt
+)
