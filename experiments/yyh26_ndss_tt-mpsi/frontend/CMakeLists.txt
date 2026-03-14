@@ -8,7 +8,7 @@ if(GMP_LIB)
 else()
     message(WARNING "gmp library not found")
 endif()
- 
+
 
 #############################################
 #               Build fronend.exe           #
@@ -23,12 +23,16 @@ add_executable(frontend.exe ${SRC_FRONTEND})
 #############################################
 #            Link our libraries             #
 #############################################
-#target_link_libraries(frontend.exe libPSI_Tests)
 target_link_libraries(frontend.exe -lgmp)
 target_link_libraries(frontend.exe libOPRF)
-target_link_libraries(frontend.exe libOTe)
 
-find_library(LIB_cryptoOLE NAMES cryptoTools PATHS ../libOLE/third_party/cryptoTools/lib)
+# Pre-built libs from upstream submodule (order matters for static linking)
+target_link_libraries(frontend.exe libOTe)
+target_link_libraries(frontend.exe ${CMAKE_SOURCE_DIR}/upstream/lib/libcryptoTools.a)
+target_link_libraries(frontend.exe ${CMAKE_SOURCE_DIR}/upstream/thirdparty/linux/miracl/miracl/source/libmiracl.a)
+
+# cryptoTools for OLE (from libOLE submodule)
+find_library(LIB_cryptoOLE NAMES cryptoTools PATHS ${CMAKE_SOURCE_DIR}/libOLE/third_party/cryptoTools/lib NO_DEFAULT_PATH)
 
 if (LIB_cryptoOLE)
     MESSAGE(STATUS "Found cryptoOLE library: ${LIB_cryptoOLE}")
@@ -37,8 +41,8 @@ else()
 endif()
 target_link_libraries(frontend.exe ${LIB_cryptoOLE})
 
-# Find the gazelle library
-find_library(LIB_GAZELLE NAMES gazelle PATHS ../libOLE/bin/lib)
+# gazelle library (from libOLE submodule)
+find_library(LIB_GAZELLE NAMES gazelle PATHS ${CMAKE_SOURCE_DIR}/libOLE/bin/lib NO_DEFAULT_PATH)
 
 if (LIB_GAZELLE)
     MESSAGE(STATUS "Found gazelle library: ${LIB_GAZELLE}")
@@ -46,14 +50,11 @@ else()
     MESSAGE(FATAL_ERROR "Could not find gazelle library")
 endif()
 
-
-# Link the gazelle library
-# target_link_libraries(frontend.exe ${LIB_GAZELLE} )
 target_link_libraries(frontend.exe -lgazelle)
 
 
 target_link_libraries(frontend.exe
-    
+
     boost_system
     boost_thread
     mpfr

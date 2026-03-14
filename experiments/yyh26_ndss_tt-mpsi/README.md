@@ -1,90 +1,74 @@
-#  ST-OT-MP-PSI
+# TT-MPSI (YYH26 NDSS)
 
-## Installations
+Threshold-Transparent Multi-Party Private Set Intersection.
 
-### Required libraries
+## Project Structure
 
-- Boost
-- GMP
+This experiment contains only our code (libOPRF + frontend). Upstream
+dependencies are referenced as git submodules:
+
+- `upstream/` — [osu-crypto/MultipartyPSI](https://github.com/osu-crypto/MultipartyPSI) (branch: implement) — provides cryptoTools, libOTe, and thirdparty/miracl
+- `libOLE/` — [leodec/ole_wahc](https://github.com/leodec/ole_wahc) — provides gazelle and cryptoTools for OLE
+
+Our code:
+- `libOPRF/` — OPPRF implementation (the paper's core contribution)
+- `frontend/` — Main executable and protocol driver
+- `tools/` — Benchmark scripts
+
+## Required Libraries
+
+- Boost (system, thread)
+- GMP + MPFR
 - NTL
-- Miracl
+- CMake, nasm, build-essential
 
-### Building the Project
+## Building
 
-After cloning project from git,
+```bash
+# 1. Clone with submodules
+git clone --recurse-submodules <repo-url>
+cd experiments/yyh26_ndss_tt-mpsi
 
-##### Linux:
+# 2. Install system dependencies
+sudo apt-get install build-essential cmake nasm libgmp-dev libgmpxx4ldbl libmpfr-dev libbenchmark-dev
 
-1. Install Boost
+# 3. Install Boost, GMP, NTL (see below)
 
-   ```
-   % wget -O boost_1_81_0.tar.gz https://sourceforge.net/projects/boost/files/boost/1.81.0/boost_1_81_0.tar.gz/download
-   % tar xzvf boost_1_81_0.tar.gz
-   % cd boost_1_81_0/
-   % sudo apt-get install build-essential autoconf
-   % ./bootstrap.sh --prefix=/usr/
-   % ./b2
-   % sudo ./b2 install
-   ```
+# 4. Build upstream dependencies
+cd upstream
+# Build miracl
+cd thirdparty/linux/miracl/miracl/source && bash linux64 && cd -
+cd thirdparty/linux/miracl/miracl_osmt/source && bash linux64_cpp && cd -
+# Build upstream
+cmake . && make
+cd ..
 
-2. Install GMP
+# 5. Build libOLE
+cd libOLE && make && cd ..
 
-   ```
-   % wget https://gmplib.org/download/gmp/gmp-6.2.1.tar.xz
-   % tar -xvf gmp-6.2.1.tar.xz
-   % cd gmp-6.2.1
-   % ./configure
-   % make
-   % make check
-   % sudo make install
-   ```
-
-3. Install NTL
-
-   ```
-   % wget https://libntl.org/ntl-11.5.1.tar.gz
-   % tar -xvzf ntl-11.5.1.tar.gz
-   % cd ntl-11.5.1/src
-   % ./configure 
-   % make
-   % make check
-   % sudo make install
-   ```
-
-4. Install Miracl
-
-   ```
-   % cd thirdparty/linux/miracl/miracl/source/
-   % bash linux64
-   % cd ../../../miracl/miracl_osmt/source/
-   % bash linux64_cpp
-   ```
-
-5. Install others
-
-   ```
-   sudo apt-get install cmake nasm libbenchmark-dev libgoogle-glog-dev libdouble-conversion-dev libgtest-dev libgmp-dev libgmpxx4ldbl libmpfr-dev libomp-dev
-   ```
-
-## Running the code
-
+# 6. Build this project
+cmake . -DCMAKE_BUILD_TYPE=Release
+make
 ```
-1. clone this repository
-2. cd `this repository`
-3. install dependencies
-4. cmake .
-5. make 
-6. bash ./tools/run_benchmark.sh 
-(or 7.) ./bin/frontend.exe -n 5 -t 2 -m 5 -p 0 & ./bin/frontend.exe -n 5 -t 2 -m 5 -p 1 & ./bin/frontend.exe -n 5 -t 2 -m 5 -p 2 & ./bin/frontend.exe -n 5 -t 2 -m 5 -p 3 & ./bin/frontend.exe -n 5 -t 2 -m 5 -p 4 &
 
+## Running
+
+```bash
+# Example: 5 parties, threshold 2, set size 2^5
+./bin/frontend.exe -n 5 -t 2 -m 5 -p 0 &
+./bin/frontend.exe -n 5 -t 2 -m 5 -p 1 &
+./bin/frontend.exe -n 5 -t 2 -m 5 -p 2 &
+./bin/frontend.exe -n 5 -t 2 -m 5 -p 3 &
+./bin/frontend.exe -n 5 -t 2 -m 5 -p 4 &
+
+# Or use the benchmark script
+bash ./tools/run_benchmark.sh
 ```
 
 **Flags:**
-
 ```
--n		number of parties
--m		set size		
--p		party ID
--t		threshold 
+-n    number of parties
+-m    set size (log2)
+-p    party ID
+-t    threshold
 ```
-

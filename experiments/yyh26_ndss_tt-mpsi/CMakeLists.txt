@@ -13,7 +13,7 @@ set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/lib)
 #############################################
 add_definitions(-DSOLUTION_DIR=\"${CMAKE_SOURCE_DIR}\")
 set(CMAKE_C_FLAGS "-ffunction-sections -Wall  -maes -msse2 -msse4.1 -mpclmul -Wfatal-errors -pthread")
-set(CMAKE_CXX_FLAGS  "${CMAKE_C_FLAGS}  -std=c++14")
+set(CMAKE_CXX_FLAGS  "${CMAKE_C_FLAGS}  -std=c++17")
 
 # Set a default build type for single-configuration
 # CMake generators if no build type is set.
@@ -35,63 +35,50 @@ SET(CMAKE_CXX_FLAGS_DEBUG  "-O0 -g")
 #       Library/includes locations          #
 #############################################
 
-# default location for libOTe
-set(libOTe_Dirs "${CMAKE_SOURCE_DIR}/libOTe/")
-include_directories("${libOTe_Dirs}/libOTe/") 
-link_directories("${libOTe_Dirs}/lib/")
+# Upstream submodule provides cryptoTools + libOTe + thirdparty/miracl
+# Build upstream first: cd upstream && cmake . && make
+set(UPSTREAM_DIR "${CMAKE_SOURCE_DIR}/upstream")
 
-# default location for miracl
-set(Miracl_Dirs "${CMAKE_SOURCE_DIR}/thirdparty/linux/miracl/")
-include_directories("${Miracl_Dirs}") 
+# cryptoTools and libOTe headers (from upstream submodule)
+include_directories("${UPSTREAM_DIR}/cryptoTools")
+include_directories("${UPSTREAM_DIR}/libOTe")
+
+# Pre-built libraries from upstream
+link_directories("${UPSTREAM_DIR}/lib")
+
+# miracl (from upstream submodule)
+set(Miracl_Dirs "${UPSTREAM_DIR}/thirdparty/linux/miracl/")
+include_directories("${Miracl_Dirs}")
 link_directories("${Miracl_Dirs}/miracl/source/")
 
 # default location for NTL
-# set(NTL_Dirs "${CMAKE_SOURCE_DIR}/thirdparty/linux/ntl/")
-# include_directories("${NTL_Dirs}/include/")
-# link_directories("${NTL_Dirs}/src/") 
-
 set(NTL_Dirs "/usr/local")
 include_directories("${NTL_Dirs}/include/")
 link_directories("${NTL_Dirs}/lib/")
 
 # default location for Boost
-set(BOOST_ROOT "${CMAKE_SOURCE_DIR}/thirdparty/linux/boost/")
+set(BOOST_ROOT "${UPSTREAM_DIR}/thirdparty/linux/boost/")
 find_package(Boost REQUIRED COMPONENTS system thread)
 
 
 #############################################
-#            Build cryptoTools              #
-#############################################
-add_subdirectory(cryptoTools)
-include_directories(cryptoTools)
-
-#############################################
-#               Build libOTe                #
-#############################################
-add_subdirectory(libOTe)
-include_directories(libOTe)
-
-
-#############################################
-#               Build libOPRF                 #
+#               Build libOPRF              #
 #############################################
 add_subdirectory(libOPRF)
 include_directories(libOPRF)
 
 
 #############################################
-#           Build libPSI Tests              #
+#         libOLE includes/libs             #
 #############################################
-#add_subdirectory(libPSI_Tests)
-#include_directories(libPSI_Tests)
+# libOLE submodule provides gazelle + cryptoTools for OLE
+# Build libOLE first: cd libOLE && make
 include_directories(libOLE/third_party/cryptoTools)
-
-
+include_directories(libOLE/src/lib)
 include_directories(libOLE/bin/lib)
+
 
 #############################################
 #              Build Frontend               #
 #############################################
 add_subdirectory(frontend)
-
-
