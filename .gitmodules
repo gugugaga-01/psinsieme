@@ -1,0 +1,6 @@
+[submodule "experiments/yyh26_ndss_tt-mpsi/upstream"]
+	path = experiments/yyh26_ndss_tt-mpsi/upstream
+	url = https://github.com/osu-crypto/MultipartyPSI.git
+[submodule "experiments/yyh26_ndss_tt-mpsi/libOLE"]
+	path = experiments/yyh26_ndss_tt-mpsi/libOLE
+	url = https://github.com/leodec/ole_wahc.git

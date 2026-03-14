@@ -6,6 +6,8 @@
 #include "Hashing/CuckooHasher1.h"
 #include "Hashing/BitPosition.h"
 #include "OPPRF/binSet.h"
+#include "../yyh26_compat.h"
+
 namespace osuCrypto
 {
 

@@ -1,6 +1,0 @@
-*.d
-*.o
-*.swp
-bin/*
-src/bin/*
-.vscode/*

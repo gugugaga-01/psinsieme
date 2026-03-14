@@ -35,21 +35,42 @@ using namespace osuCrypto;
 #include <string>
 #include <time.h>
 
-#include "../libOLE/third_party/cryptoTools/cryptoTools/Common/Timer.h"
-#include "../libOLE/third_party/cryptoTools/cryptoTools/Common/Log.h"
-
-#include "../libOLE/third_party/cryptoTools/cryptoTools/Network/Channel.h"
-#include "../libOLE/third_party/cryptoTools/cryptoTools/Network/Session.h"
-#include "../libOLE/third_party/cryptoTools/cryptoTools/Network/IOService.h"
-
 #include "../libOLE/src/lib/pke/ole.h"
 #include "../libOLE/src/lib/pke/gazelle-network.h"
 #include "../libOLE/src/lib/utils/debug.h"
+// #include "ChannelBridge.h"  // replaced by separate OLE TCP connections
 #include <boost/multiprecision/cpp_int.hpp>
 
 using namespace lbcrypto;
-using namespace osuCryptoNew;
 const double std_dev = 3.2;
+
+// FourBOLEReceiverInputs: splits 128-bit packed values (4 x 32-bit CRT components)
+// into 4 separate BOLEReceiverInput objects, one per CRT modulus.
+template <typename encoding_input_t>
+struct FourBOLEReceiverInputs {
+	std::vector<BOLEReceiverInput<encoding_input_t>> receiverInputs;
+
+	FourBOLEReceiverInputs(ui32 numBlocks) {
+		for (int i = 0; i < 4; i++)
+			receiverInputs.emplace_back(numBlocks);
+	}
+
+	// ReInput[numBlocks][oleSize]: each entry is a 128-bit value with 4 x 32-bit
+	// components packed via (3-k)*32 shift. Extract each component into the
+	// corresponding receiverInput's polynomial slots.
+	void processModule(const std::vector<std::vector<ui128>>& ReInput) {
+		for (ui32 blockIdx = 0; blockIdx < ReInput.size(); blockIdx++) {
+			for (ui32 slotIdx = 0; slotIdx < ReInput[blockIdx].size(); slotIdx++) {
+				ui128 val = ReInput[blockIdx][slotIdx];
+				for (int k = 0; k < 4; k++) {
+					ui64 shift = (3 - k) * 32;
+					receiverInputs[k].x[blockIdx].vals[slotIdx] =
+						(val >> shift) & 0xFFFFFFFF;
+				}
+			}
+		}
+	}
+};
 
 std::vector<NTL::ZZ_p> ShareSecret(const NTL::ZZ_p secret, u64 numShares, u64 threshold, NTL::ZZ p)
 {
@@ -265,7 +286,7 @@ BOLEReceiverOutput<typename SchemeType1::encoding_context_t::encoding_input_t> R
 	const BOLEReceiverInput<typename SchemeType1::encoding_context_t::encoding_input_t> &input,
 	const typename SchemeType1::SecretKey &sk,
 	const SchemeType1 &scheme_origin,
-	osuCrypto::Channel &chl)
+	osuCryptoNew::Channel &chl)
 {
 
 	constexpr ui32 logn_const = logn;
@@ -295,7 +316,7 @@ void SenderOnline(
 	BOLESenderInput<typename SchemeType1::encoding_context_t::encoding_input_t> &input,
 	const typename SchemeType1::PublicKey &pk,
 	const SchemeType1 &scheme_origin,
-	osuCrypto::Channel &chl)
+	osuCryptoNew::Channel &chl)
 {
 	constexpr ui32 logn_const = logn;
 
@@ -437,41 +458,30 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 	}
 #pragma endregion
 
-	// #pragma region OLEsetup
-
-	//     std::vector<osuCryptoNew::Session> epOLE(nParties);
-	//     osuCryptoNew::IOService iosOLE;
-	// 	for (u64 i = 0; i < nParties; ++i)
-	// 	{
-	// 		if (i < myIdx)
-	// 		{
-	// 			u32 port = 7000 + i * 100 + myIdx;;//get the same port; i=1 & pIdx=2 =>port=102
-	// 			epOLE[i].start(iosOLE, "localhost", port, EpMode::Client, name); //channel bwt i and pIdx, where i is sender
-	// 		}
-	// 		else if (i > myIdx)
-	// 		{
-	// 			u32 port = 7000 + myIdx * 100 + i;//get the same port; i=2 & pIdx=1 =>port=102
-	// 			epOLE[i].start(iosOLE, "localhost", port, EpMode::Server, name); //channel bwt i and pIdx, where i is receiver
-	// 		}
-	// 	}
-
-	// std::vector<std::vector<osuCryptoNew::Channel>> chlsOLE(nParties);
-
-	//     for (u64 i = 0; i < nParties; ++i)
-	// 	{
-	// 		//dummy[i] = myIdx * 10 + i;
-
-	// 		if (i != myIdx) {
-	// 			chlsOLE[i].resize(numThreads);
-	// 			for (u64 j = 0; j < numThreads; ++j)
-	// 			{
-	// 				//chls[i][j] = &ep[i].addChannel("chl" + std::to_string(j), "chl" + std::to_string(j));
-	// 				chlsOLE[i][j] = epOLE[i].addChannel(name, name);
-	// 				//chls[i][j].mEndpoint;
-	// 			}
-	// 		}
-	// 	}
-	// #pragma endregion
+	// Separate OLE TCP connections (ports 7000+)
+	osuCryptoNew::IOService iosOLE(0);
+	std::vector<osuCryptoNew::Session> epOLE(nParties);
+	for (u64 i = 0; i < nParties; ++i)
+	{
+		if (i < myIdx)
+		{
+			u32 port = 7000 + i * 100 + myIdx;
+			epOLE[i].start(iosOLE, "localhost", port, osuCryptoNew::SessionMode::Client, name);
+		}
+		else if (i > myIdx)
+		{
+			u32 port = 7000 + myIdx * 100 + i;
+			epOLE[i].start(iosOLE, "localhost", port, osuCryptoNew::SessionMode::Server, name);
+		}
+	}
+	std::vector<osuCryptoNew::Channel> chlsOLE(nParties);
+	for (u64 i = 0; i < nParties; ++i)
+	{
+		if (i != myIdx)
+		{
+			chlsOLE[i] = epOLE[i].addChannel(name, name);
+		}
+	}
 
 	// NTL::ZZ sameseed = NTL::conv<NTL::ZZ>("1234");
 	// NTL::ZZ diffseed = NTL::ZZ(myIdx);
@@ -534,7 +544,7 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 		{
 			do
 			{
-				new_element = rand() % ((nParties / 2) * setSize);
+				new_element = rand() % (2 * setSize);
 			} while (party_set.find(new_element) != party_set.end());
 
 			party_set.insert(new_element);
@@ -1177,12 +1187,12 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 			for (int pIdx = 0; pIdx < nParties - 1; pIdx++)
 			{
 				const SchemeType scheme(std_dev);
-				auto chl = chls[pIdx][0];
+				auto& oleChl = chlsOLE[pIdx];
 				using KeyPairSeeded = typename SchemeType::KeyPairSeeded;
 				using SecretKey = typename SchemeType::SecretKey;
 
 				KeyPairSeeded kpSeeded = scheme.KeyGenSeeded();
-				sendPublicKey(kpSeeded.pkSeeded, *chl);
+				sendPublicKey(kpSeeded.pkSeeded, oleChl);
 				SecretKey &sk = kpSeeded.sk;
 
 				using encoding_context_t = typename SchemeType::encoding_context_t;
@@ -1211,13 +1221,13 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 				std::vector<BOLEReceiverOutput<encoding_input_t>> FourOutputs(4, BOLEReceiverOutput<encoding_input_t>(FourInputs.receiverInputs[0].numBlocks));
 
 				FourOutputs[0] = ReceiverOnline<4293230593ULL, 13, 4, SchemeType>(
-					FourInputs.receiverInputs[0], sk, scheme, *chl);
+					FourInputs.receiverInputs[0], sk, scheme, oleChl);
 				FourOutputs[1] = ReceiverOnline<4293836801ULL, 13, 4, SchemeType>(
-					FourInputs.receiverInputs[1], sk, scheme, *chl);
+					FourInputs.receiverInputs[1], sk, scheme, oleChl);
 				FourOutputs[2] = ReceiverOnline<4293918721ULL, 13, 4, SchemeType>(
-					FourInputs.receiverInputs[2], sk, scheme, *chl);
+					FourInputs.receiverInputs[2], sk, scheme, oleChl);
 				FourOutputs[3] = ReceiverOnline<4294475777ULL, 13, 4, SchemeType>(
-					FourInputs.receiverInputs[3], sk, scheme, *chl);
+					FourInputs.receiverInputs[3], sk, scheme, oleChl);
 
 				for (int BoleIdx = 0; BoleIdx < leaderBoleNum; BoleIdx++)
 				{
@@ -1237,12 +1247,12 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 		{
 			// clients (as OLE Sender) and leader invoke OLEs
 			const SchemeType scheme(std_dev);
-			auto chl = chls[leaderIdx][0];
+			auto& oleChl = chlsOLE[leaderIdx];
 
 			using SeededPublicKey = typename SchemeType::PublicKeySeeded;
 			using PublicKey = typename SchemeType::PublicKey;
 			SeededPublicKey seededPK;
-			receivePublicKey(seededPK, *chl);
+			receivePublicKey(seededPK, oleChl);
 			PublicKey pk = seededPK.expand();
 
 			int row = 0, col = 0;
@@ -1313,10 +1323,10 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 			{
 				FourSenderInput.emplace_back(BOLESenderInput<encoding_input_t>(aVecs[i], bVecs[i]));
 			}
-			SenderOnline<4293230593ULL, 13, 4, SchemeType>(FourSenderInput[0], pk, scheme, *chl);
-			SenderOnline<4293836801ULL, 13, 4, SchemeType>(FourSenderInput[1], pk, scheme, *chl);
-			SenderOnline<4293918721ULL, 13, 4, SchemeType>(FourSenderInput[2], pk, scheme, *chl);
-			SenderOnline<4294475777ULL, 13, 4, SchemeType>(FourSenderInput[3], pk, scheme, *chl);
+			SenderOnline<4293230593ULL, 13, 4, SchemeType>(FourSenderInput[0], pk, scheme, oleChl);
+			SenderOnline<4293836801ULL, 13, 4, SchemeType>(FourSenderInput[1], pk, scheme, oleChl);
+			SenderOnline<4293918721ULL, 13, 4, SchemeType>(FourSenderInput[2], pk, scheme, oleChl);
+			SenderOnline<4294475777ULL, 13, 4, SchemeType>(FourSenderInput[3], pk, scheme, oleChl);
 		}
 
 		// syncHelper(myIdx, chls);
@@ -1428,14 +1438,14 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 				// 		//OLE receiver
 				if (myIdx > pIdx)
 				{
-					auto chl = chls[pIdx][0];
+					auto& oleChl = chlsOLE[pIdx];
 
 					const SchemeType scheme(std_dev);
 					using KeyPairSeeded = typename SchemeType::KeyPairSeeded;
 					using SecretKey = typename SchemeType::SecretKey;
 
 					KeyPairSeeded kpSeeded = scheme.KeyGenSeeded();
-					sendPublicKey(kpSeeded.pkSeeded, *chl);
+					sendPublicKey(kpSeeded.pkSeeded, oleChl);
 					SecretKey &sk = kpSeeded.sk;
 
 					using encoding_context_t = typename SchemeType::encoding_context_t;
@@ -1448,13 +1458,13 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 					std::vector<BOLEReceiverOutput<encoding_input_t>> FourOutputs(4, BOLEReceiverOutput<encoding_input_t>(FourInputs.receiverInputs[0].numBlocks));
 
 					FourOutputs[0] = ReceiverOnline<4293230593ULL, 13, 4, SchemeType>(
-						FourInputs.receiverInputs[0], sk, scheme, *chl);
+						FourInputs.receiverInputs[0], sk, scheme, oleChl);
 					FourOutputs[1] = ReceiverOnline<4293836801ULL, 13, 4, SchemeType>(
-						FourInputs.receiverInputs[1], sk, scheme, *chl);
+						FourInputs.receiverInputs[1], sk, scheme, oleChl);
 					FourOutputs[2] = ReceiverOnline<4293918721ULL, 13, 4, SchemeType>(
-						FourInputs.receiverInputs[2], sk, scheme, *chl);
+						FourInputs.receiverInputs[2], sk, scheme, oleChl);
 					FourOutputs[3] = ReceiverOnline<4294475777ULL, 13, 4, SchemeType>(
-						FourInputs.receiverInputs[3], sk, scheme, *chl);
+						FourInputs.receiverInputs[3], sk, scheme, oleChl);
 
 					for (int BoleIdx = 0; BoleIdx < ClientBoleNum; BoleIdx++)
 					{
@@ -1473,7 +1483,7 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 				{
 					// 			//prepare a[] b[]  sender
 					int row = 0, col = 0;
-					auto chl = chls[pIdx][0];
+					auto& oleChl = chlsOLE[pIdx];
 					for (u64 bIdx = 0; bIdx < UpdateValueSize; bIdx++)
 					{
 						u64 numMax;
@@ -1505,7 +1515,7 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 					using SeededPublicKey = typename SchemeType::PublicKeySeeded;
 					using PublicKey = typename SchemeType::PublicKey;
 					SeededPublicKey seededPK;
-					receivePublicKey(seededPK, *chl);
+					receivePublicKey(seededPK, oleChl);
 					PublicKey pk = seededPK.expand();
 
 					using encoding_context_t = typename SchemeType::encoding_context_t;
@@ -1538,10 +1548,10 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 					{
 						FourSenderInput.emplace_back(BOLESenderInput<encoding_input_t>(aVecs[i], bVecs[i]));
 					}
-					SenderOnline<4293230593ULL, 13, 4, SchemeType>(FourSenderInput[0], pk, scheme, *chl);
-					SenderOnline<4293836801ULL, 13, 4, SchemeType>(FourSenderInput[1], pk, scheme, *chl);
-					SenderOnline<4293918721ULL, 13, 4, SchemeType>(FourSenderInput[2], pk, scheme, *chl);
-					SenderOnline<4294475777ULL, 13, 4, SchemeType>(FourSenderInput[3], pk, scheme, *chl);
+					SenderOnline<4293230593ULL, 13, 4, SchemeType>(FourSenderInput[0], pk, scheme, oleChl);
+					SenderOnline<4293836801ULL, 13, 4, SchemeType>(FourSenderInput[1], pk, scheme, oleChl);
+					SenderOnline<4293918721ULL, 13, 4, SchemeType>(FourSenderInput[2], pk, scheme, oleChl);
+					SenderOnline<4294475777ULL, 13, 4, SchemeType>(FourSenderInput[3], pk, scheme, oleChl);
 				}
 			}
 
@@ -1550,14 +1560,14 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 				// 		//OLE receiver
 				if (myIdx < pIdx)
 				{
-					auto chl = chls[pIdx][0];
+					auto& oleChl = chlsOLE[pIdx];
 					// 			//OLE
 					SchemeType scheme(std_dev);
 					using KeyPairSeeded = typename SchemeType::KeyPairSeeded;
 					using SecretKey = typename SchemeType::SecretKey;
 
 					KeyPairSeeded kpSeeded = scheme.KeyGenSeeded();
-					sendPublicKey(kpSeeded.pkSeeded, *chl);
+					sendPublicKey(kpSeeded.pkSeeded, oleChl);
 					SecretKey &sk = kpSeeded.sk;
 
 					using encoding_context_t = typename SchemeType::encoding_context_t;
@@ -1569,13 +1579,13 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 					std::vector<BOLEReceiverOutput<encoding_input_t>> FourOutputs(4, BOLEReceiverOutput<encoding_input_t>(FourInputs.receiverInputs[0].numBlocks));
 
 					FourOutputs[0] = ReceiverOnline<4293230593ULL, 13, 4, SchemeType>(
-						FourInputs.receiverInputs[0], sk, scheme, *chl);
+						FourInputs.receiverInputs[0], sk, scheme, oleChl);
 					FourOutputs[1] = ReceiverOnline<4293836801ULL, 13, 4, SchemeType>(
-						FourInputs.receiverInputs[1], sk, scheme, *chl);
+						FourInputs.receiverInputs[1], sk, scheme, oleChl);
 					FourOutputs[2] = ReceiverOnline<4293918721ULL, 13, 4, SchemeType>(
-						FourInputs.receiverInputs[2], sk, scheme, *chl);
+						FourInputs.receiverInputs[2], sk, scheme, oleChl);
 					FourOutputs[3] = ReceiverOnline<4294475777ULL, 13, 4, SchemeType>(
-						FourInputs.receiverInputs[3], sk, scheme, *chl);
+						FourInputs.receiverInputs[3], sk, scheme, oleChl);
 
 					for (int BoleIdx = 0; BoleIdx < ClientBoleNum; BoleIdx++)
 					{
@@ -1595,7 +1605,7 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 				{
 					// 			//prepare a[] b[]
 					int row = 0, col = 0;
-					auto chl = chls[pIdx][0];
+					auto& oleChl = chlsOLE[pIdx];
 
 					for (u64 bIdx = 0; bIdx < UpdateValueSize; bIdx++)
 					{
@@ -1628,7 +1638,7 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 					using SeededPublicKey = typename SchemeType::PublicKeySeeded;
 					using PublicKey = typename SchemeType::PublicKey;
 					SeededPublicKey seededPK;
-					receivePublicKey(seededPK, *chl);
+					receivePublicKey(seededPK, oleChl);
 					PublicKey pk = seededPK.expand();
 
 					using encoding_context_t = typename SchemeType::encoding_context_t;
@@ -1661,10 +1671,10 @@ void tparty(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 					{
 						FourSenderInput.emplace_back(BOLESenderInput<encoding_input_t>(aVecs[i], bVecs[i]));
 					}
-					SenderOnline<4293230593ULL, 13, 4, SchemeType>(FourSenderInput[0], pk, scheme, *chl);
-					SenderOnline<4293836801ULL, 13, 4, SchemeType>(FourSenderInput[1], pk, scheme, *chl);
-					SenderOnline<4293918721ULL, 13, 4, SchemeType>(FourSenderInput[2], pk, scheme, *chl);
-					SenderOnline<4294475777ULL, 13, 4, SchemeType>(FourSenderInput[3], pk, scheme, *chl);
+					SenderOnline<4293230593ULL, 13, 4, SchemeType>(FourSenderInput[0], pk, scheme, oleChl);
+					SenderOnline<4293836801ULL, 13, 4, SchemeType>(FourSenderInput[1], pk, scheme, oleChl);
+					SenderOnline<4293918721ULL, 13, 4, SchemeType>(FourSenderInput[2], pk, scheme, oleChl);
+					SenderOnline<4294475777ULL, 13, 4, SchemeType>(FourSenderInput[3], pk, scheme, oleChl);
 				}
 			}
 		}
@@ -2693,43 +2703,30 @@ void tparty_mt(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 	}
 #pragma endregion
 
-	// #pragma region OLEsetup
-
-	// 	std::vector<osuCryptoNew::Session> epOLE(nParties);
-	// 	osuCryptoNew::IOService iosOLE;
-	// 	for (u64 i = 0; i < nParties; ++i)
-	// 	{
-	// 		if (i < myIdx)
-	// 		{
-	// 			u32 port = 7000 + i * 100 + myIdx;
-	// 			;																 // get the same port; i=1 & pIdx=2 =>port=102
-	// 			epOLE[i].start(iosOLE, "localhost", port, EpMode::Client, name); // channel bwt i and pIdx, where i is sender
-	// 		}
-	// 		else if (i > myIdx)
-	// 		{
-	// 			u32 port = 7000 + myIdx * 100 + i;								 // get the same port; i=2 & pIdx=1 =>port=102
-	// 			epOLE[i].start(iosOLE, "localhost", port, EpMode::Server, name); // channel bwt i and pIdx, where i is receiver
-	// 		}
-	// 	}
-
-	// 	std::vector<std::vector<osuCryptoNew::Channel>> chlsOLE(nParties);
-
-	// 	for (u64 i = 0; i < nParties; ++i)
-	// 	{
-	// 		// dummy[i] = myIdx * 10 + i;
-
-	// 		if (i != myIdx)
-	// 		{
-	// 			chlsOLE[i].resize(numThreads);
-	// 			for (u64 j = 0; j < numThreads; ++j)
-	// 			{
-	// 				// chls[i][j] = &ep[i].addChannel("chl" + std::to_string(j), "chl" + std::to_string(j));
-	// 				chlsOLE[i][j] = epOLE[i].addChannel(name, name);
-	// 				// chls[i][j].mEndpoint;
-	// 			}
-	// 		}
-	// 	}
-	// #pragma endregion
+	// Separate OLE TCP connections (ports 7000+)
+	osuCryptoNew::IOService iosOLE(0);
+	std::vector<osuCryptoNew::Session> epOLE(nParties);
+	for (u64 i = 0; i < nParties; ++i)
+	{
+		if (i < myIdx)
+		{
+			u32 port = 7000 + i * 100 + myIdx;
+			epOLE[i].start(iosOLE, "localhost", port, osuCryptoNew::SessionMode::Client, name);
+		}
+		else if (i > myIdx)
+		{
+			u32 port = 7000 + myIdx * 100 + i;
+			epOLE[i].start(iosOLE, "localhost", port, osuCryptoNew::SessionMode::Server, name);
+		}
+	}
+	std::vector<osuCryptoNew::Channel> chlsOLE(nParties);
+	for (u64 i = 0; i < nParties; ++i)
+	{
+		if (i != myIdx)
+		{
+			chlsOLE[i] = epOLE[i].addChannel(name, name);
+		}
+	}
 
 	u64 num_intersection;
 	double dataSent, Mbps, MbpsRecv, dataRecv;
@@ -3246,11 +3243,11 @@ void tparty_mt(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 			for_each_party_parallel(nParties - 1, [&](u64 pIdx)
 									{
                 const SchemeType scheme(std_dev);
-                auto chl = chls[pIdx][0];
+                auto& oleChl = chlsOLE[pIdx];
                 using KeyPairSeeded = typename SchemeType::KeyPairSeeded;
                 using SecretKey     = typename SchemeType::SecretKey;
                 KeyPairSeeded kpSeeded = scheme.KeyGenSeeded();
-                sendPublicKey(kpSeeded.pkSeeded, *chl);
+                sendPublicKey(kpSeeded.pkSeeded, oleChl);
                 SecretKey& sk = kpSeeded.sk;
 
                 using encoding_context_t = typename SchemeType::encoding_context_t;
@@ -3274,10 +3271,10 @@ void tparty_mt(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
                 std::vector<BOLEReceiverOutput<encoding_input_t>> FourOutputs(
                     4, BOLEReceiverOutput<encoding_input_t>(FourInputs.receiverInputs[0].numBlocks));
 
-                FourOutputs[0] = ReceiverOnline<4293230593ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[0], sk, scheme, *chl);
-                FourOutputs[1] = ReceiverOnline<4293836801ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[1], sk, scheme, *chl);
-                FourOutputs[2] = ReceiverOnline<4293918721ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[2], sk, scheme, *chl);
-                FourOutputs[3] = ReceiverOnline<4294475777ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[3], sk, scheme, *chl);
+                FourOutputs[0] = ReceiverOnline<4293230593ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[0], sk, scheme, oleChl);
+                FourOutputs[1] = ReceiverOnline<4293836801ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[1], sk, scheme, oleChl);
+                FourOutputs[2] = ReceiverOnline<4293918721ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[2], sk, scheme, oleChl);
+                FourOutputs[3] = ReceiverOnline<4294475777ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[3], sk, scheme, oleChl);
 
                 for (int BoleIdx = 0; BoleIdx < (int)leaderBoleNum; BoleIdx++)
                     for (u64 i = 0; i < oleSize; i++) {
@@ -3291,12 +3288,12 @@ void tparty_mt(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 		{
 			// clients (as OLE Sender) and leader invoke OLEs
 			const SchemeType scheme(std_dev);
-			auto chl = chls[leaderIdx][0];
+			auto& oleChl = chlsOLE[leaderIdx];
 
 			using SeededPublicKey = typename SchemeType::PublicKeySeeded;
 			using PublicKey = typename SchemeType::PublicKey;
 			SeededPublicKey seededPK;
-			receivePublicKey(seededPK, *chl);
+			receivePublicKey(seededPK, oleChl);
 			PublicKey pk = seededPK.expand();
 
 			int row = 0, col = 0;
@@ -3367,10 +3364,10 @@ void tparty_mt(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 			{
 				FourSenderInput.emplace_back(BOLESenderInput<encoding_input_t>(aVecs[i], bVecs[i]));
 			}
-			SenderOnline<4293230593ULL, 13, 4, SchemeType>(FourSenderInput[0], pk, scheme, *chl);
-			SenderOnline<4293836801ULL, 13, 4, SchemeType>(FourSenderInput[1], pk, scheme, *chl);
-			SenderOnline<4293918721ULL, 13, 4, SchemeType>(FourSenderInput[2], pk, scheme, *chl);
-			SenderOnline<4294475777ULL, 13, 4, SchemeType>(FourSenderInput[3], pk, scheme, *chl);
+			SenderOnline<4293230593ULL, 13, 4, SchemeType>(FourSenderInput[0], pk, scheme, oleChl);
+			SenderOnline<4293836801ULL, 13, 4, SchemeType>(FourSenderInput[1], pk, scheme, oleChl);
+			SenderOnline<4293918721ULL, 13, 4, SchemeType>(FourSenderInput[2], pk, scheme, oleChl);
+			SenderOnline<4294475777ULL, 13, 4, SchemeType>(FourSenderInput[3], pk, scheme, oleChl);
 		}
 		auto OLEend1 = timer.setTimePoint("");
 		// std::cout << "Party [" << myIdx << "] finish OLE1 in " << std::chrono::duration_cast<std::chrono::milliseconds>(OLEend1 - OLEstart1).count() << " ms" << std::endl;
@@ -3488,13 +3485,13 @@ void tparty_mt(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 
 					// 接收方流程
 					auto do_receiver = [&](u64 peer) {
-						auto chl = chls[peer][0];
+						auto& oleChl = chlsOLE[peer];
 						const SchemeType scheme(std_dev);
 						using KeyPairSeeded = typename SchemeType::KeyPairSeeded;
 						using SecretKey     = typename SchemeType::SecretKey;
 
 						KeyPairSeeded kpSeeded = scheme.KeyGenSeeded();
-						sendPublicKey(kpSeeded.pkSeeded, *chl);
+						sendPublicKey(kpSeeded.pkSeeded, oleChl);
 						SecretKey &sk = kpSeeded.sk;
 
 						FourBOLEReceiverInputs<encoding_input_t> FourInputs(ClientBoleNum);
@@ -3503,10 +3500,10 @@ void tparty_mt(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 						std::vector<BOLEReceiverOutput<encoding_input_t>> FourOutputs(
 							4, BOLEReceiverOutput<encoding_input_t>(FourInputs.receiverInputs[0].numBlocks));
 
-						FourOutputs[0] = ReceiverOnline<4293230593ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[0], sk, scheme, *chl);
-						FourOutputs[1] = ReceiverOnline<4293836801ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[1], sk, scheme, *chl);
-						FourOutputs[2] = ReceiverOnline<4293918721ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[2], sk, scheme, *chl);
-						FourOutputs[3] = ReceiverOnline<4294475777ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[3], sk, scheme, *chl);
+						FourOutputs[0] = ReceiverOnline<4293230593ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[0], sk, scheme, oleChl);
+						FourOutputs[1] = ReceiverOnline<4293836801ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[1], sk, scheme, oleChl);
+						FourOutputs[2] = ReceiverOnline<4293918721ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[2], sk, scheme, oleChl);
+						FourOutputs[3] = ReceiverOnline<4294475777ULL, 13, 4, SchemeType>(FourInputs.receiverInputs[3], sk, scheme, oleChl);
 
 						for (int BoleIdx = 0; BoleIdx < (int)ClientBoleNum; BoleIdx++)
 							for (u64 i = 0; i < oleSize; i++)
@@ -3515,7 +3512,7 @@ void tparty_mt(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 
 					// 发送方流程（使用线程局部的批缓存，避免共享写）
 					auto do_sender = [&](u64 peer) {
-						auto chl = chls[peer][0];
+						auto& oleChl = chlsOLE[peer];
 
 						// 先把 randomValue/partUpValue 平铺到线程局部的 *_local
 						std::vector<std::vector<ui128>> randomValueForClient_local(ClientBoleNum, std::vector<ui128>(oleSize));
@@ -3542,7 +3539,7 @@ void tparty_mt(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 						using SeededPublicKey = typename SchemeType::PublicKeySeeded;
 						using PublicKey = typename SchemeType::PublicKey;
 						SeededPublicKey seededPK;
-						receivePublicKey(seededPK, *chl);
+						receivePublicKey(seededPK, oleChl);
 						PublicKey pk = seededPK.expand();
 
 						std::vector<std::vector<encoding_input_t>> aVecs(4), bVecs(4);
@@ -3569,10 +3566,10 @@ void tparty_mt(u64 myIdx, u64 nParties, u64 threshold, u64 setSize, u64 nTrials)
 						for (ui32 i = 0; i < 4; i++)
 							FourSenderInput.emplace_back(BOLESenderInput<encoding_input_t>(aVecs[i], bVecs[i]));
 
-						SenderOnline<4293230593ULL, 13, 4, SchemeType>(FourSenderInput[0], pk, scheme, *chl);
-						SenderOnline<4293836801ULL, 13, 4, SchemeType>(FourSenderInput[1], pk, scheme, *chl);
-						SenderOnline<4293918721ULL, 13, 4, SchemeType>(FourSenderInput[2], pk, scheme, *chl);
-						SenderOnline<4294475777ULL, 13, 4, SchemeType>(FourSenderInput[3], pk, scheme, *chl);
+						SenderOnline<4293230593ULL, 13, 4, SchemeType>(FourSenderInput[0], pk, scheme, oleChl);
+						SenderOnline<4293836801ULL, 13, 4, SchemeType>(FourSenderInput[1], pk, scheme, oleChl);
+						SenderOnline<4293918721ULL, 13, 4, SchemeType>(FourSenderInput[2], pk, scheme, oleChl);
+						SenderOnline<4294475777ULL, 13, 4, SchemeType>(FourSenderInput[3], pk, scheme, oleChl);
 					};
 
 					// 同一对端的双向交互在同一线程内顺序执行，避免通道并发
