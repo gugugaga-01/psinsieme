@@ -6,18 +6,20 @@ Experimental implementations of multi-party Private Set Intersection (PSI) proto
 
 | Directory | Protocol | Reference |
 |-----------|----------|-----------|
-| `experiments/ks05_crypto_t-mpsi` | Threshold MPSI | Kissner & Song, CRYPTO 2005 [[doi]](https://doi.org/10.1007/11535218_15) |
-| `experiments/beh21_tifs_t-mpsi` | Threshold MPSI | Bay, Erkin, Hoepman, Samardjiska & Vos, IEEE TIFS 2021 [[doi]](https://doi.org/10.1109/TIFS.2021.3118879) |
-| `experiments/yyh26_ndss_tt-mpsi` | T-Threshold MPSI | TBD, NDSS 2026 |
+| `experiments/ks05` | Threshold MPSI | Kissner & Song, CRYPTO 2005 [[doi]](https://doi.org/10.1007/11535218_15) |
+| `experiments/beh21` | Threshold MPSI | Bay, Erkin, Hoepman, Samardjiska & Vos, IEEE TIFS 2021 [[doi]](https://doi.org/10.1109/TIFS.2021.3118879) |
+| `experiments/yyh26` | T-Threshold MPSI | TBD, NDSS 2026 |
 
 ## Structure
 
 ```
 multiparty-psi-protocols-experimental/
 ├── experiments/          # Academic reference implementations (plaintext TCP)
-│   ├── ks05_crypto_t-mpsi/
-│   ├── beh21_tifs_t-mpsi/
-│   └── yyh26_ndss_tt-mpsi/
+│   ├── shared/          # Shared crypto (paillier, defines, logger)
+│   ├── ks05/            # Kissner-Song CRYPTO'05 T-MPSI
+│   ├── beh21/           # Bay et al. TIFS'21 OT-MPSI
+│   ├── yyh26/           # YYH26 NDSS'26 TT-MPSI
+│   └── tools/           # Shared benchmark scripts
 └── service/              # gRPC service framework (mTLS, dealer, Python client)
     ├── proto/            # Protobuf definitions
     ├── core/             # Shared transport layer

@@ -5,10 +5,10 @@
 #   1. Build the service with YYH26 support:
 #      cd build && cmake ../service -DMPSI_BUILD_YYH26=ON && make -j$(nproc)
 #   2. Build the experiments binary:
-#      cd experiments/yyh26_ndss_tt-mpsi && mkdir -p build && cd build
+#      cd experiments/yyh26 && mkdir -p build && cd build
 #      cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
 #   3. Set MPSI_YYH26_BINARY_PATH to the experiments binary path, or ensure
-#      it's findable at ../experiments/yyh26_ndss_tt-mpsi/bin/frontend.exe
+#      it's findable at ../experiments/yyh26/bin/frontend.exe
 #
 # Usage: bash demo.sh [--parties N] [--threshold T]
 #
@@ -38,16 +38,16 @@ if [[ ! -f "$BUILD_DIR/psi_party" ]]; then
 fi
 
 # Check for experiments binary
-YYH26_BIN="${MPSI_YYH26_BINARY_PATH:-$REPO_ROOT/experiments/yyh26_ndss_tt-mpsi/bin/frontend.exe}"
+YYH26_BIN="${MPSI_YYH26_BINARY_PATH:-$REPO_ROOT/experiments/yyh26/bin/frontend.exe}"
 if [[ ! -f "$YYH26_BIN" ]]; then
     echo "YYH26 experiments binary not found at: $YYH26_BIN"
     echo "Build it first:"
-    echo "  cd experiments/yyh26_ndss_tt-mpsi && mkdir -p build && cd build"
+    echo "  cd experiments/yyh26 && mkdir -p build && cd build"
     echo "  cmake .. -DCMAKE_BUILD_TYPE=Release && make -j\$(nproc)"
     exit 1
 fi
 export MPSI_YYH26_BINARY_PATH="$YYH26_BIN"
-export MPSI_YYH26_LIB_PATH="$REPO_ROOT/experiments/yyh26_ndss_tt-mpsi/libOLE/bin/lib"
+export MPSI_YYH26_LIB_PATH="$REPO_ROOT/experiments/yyh26/libOLE/bin/lib"
 
 PIDS=()
 cleanup() {

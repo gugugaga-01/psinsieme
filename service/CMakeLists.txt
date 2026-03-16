@@ -100,15 +100,15 @@ target_link_libraries(ks05_protocol PRIVATE pthread)
 option(MPSI_BUILD_YYH26 "Build YYH26 TT-MPSI protocol support" OFF)
 
 if(MPSI_BUILD_YYH26)
-    set(YYH26_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../experiments/yyh26_ndss_tt-mpsi")
+    set(YYH26_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../experiments/yyh26")
 
-    # Verify experiments libraries exist
-    if(NOT EXISTS "${YYH26_ROOT}/lib/liblibOTe.a")
+    # Verify experiments libraries exist (upstream submodule must be built)
+    if(NOT EXISTS "${YYH26_ROOT}/upstream/lib/liblibOTe.a")
         message(FATAL_ERROR
-            "YYH26 experiments libraries not found at ${YYH26_ROOT}/lib/\n"
+            "YYH26 experiments libraries not found at ${YYH26_ROOT}/upstream/lib/\n"
             "Build experiments first:\n"
-            "  cd experiments/yyh26_ndss_tt-mpsi && mkdir -p build && cd build\n"
-            "  cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)")
+            "  cd experiments/yyh26 && bash setup.sh\n"
+            "  mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)")
     endif()
 
     add_library(yyh26_protocol
@@ -119,23 +119,23 @@ if(MPSI_BUILD_YYH26)
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
     target_include_directories(yyh26_protocol PRIVATE
-        ${YYH26_ROOT}/cryptoTools
-        ${YYH26_ROOT}/libOTe
+        ${YYH26_ROOT}/upstream/cryptoTools
+        ${YYH26_ROOT}/upstream/libOTe
         ${YYH26_ROOT}/libOPRF
         ${YYH26_ROOT}/libOLE/src/lib
         ${YYH26_ROOT}/libOLE/third_party/cryptoTools
-        ${YYH26_ROOT}/thirdparty/linux/miracl/miracl/include
+        ${YYH26_ROOT}/upstream/thirdparty/linux/miracl/miracl/include
         ${YYH26_ROOT}/frontend
         ${NTL_INCLUDE_DIR}
     )
 
     target_link_libraries(yyh26_protocol PRIVATE
         ${YYH26_ROOT}/lib/liblibOPRF.a
-        ${YYH26_ROOT}/lib/liblibOTe.a
-        ${YYH26_ROOT}/lib/libcryptoTools.a
+        ${YYH26_ROOT}/upstream/lib/liblibOTe.a
+        ${YYH26_ROOT}/upstream/lib/libcryptoTools.a
         ${YYH26_ROOT}/libOLE/bin/lib/libgazelle.so
         ${YYH26_ROOT}/libOLE/third_party/cryptoTools/lib/libcryptoTools.a
-        ${YYH26_ROOT}/thirdparty/linux/miracl/miracl/source/libmiracl.a
+        ${YYH26_ROOT}/upstream/thirdparty/linux/miracl/miracl/source/libmiracl.a
         ${NTL_LIBRARY} ${GMP_LIBRARY}
         boost_system boost_thread pthread
     )
