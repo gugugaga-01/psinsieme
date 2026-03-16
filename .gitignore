@@ -53,6 +53,7 @@ experiments/yyh26/time_*.txt
 
 # Claude Code
 CLAUDE.md
+.claude/
 
 # OS
 .DS_Store

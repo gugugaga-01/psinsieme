@@ -2,9 +2,9 @@
 #define EXPERIMENTS_SHARED_PAILLIER_H
 
 #include <vector>
-#include "defines.h"
+#include <NTL/ZZ.h>
 
-// Type aliases
+using ZZ = NTL::ZZ;
 using Plaintext = ZZ;
 using Ciphertext = ZZ;
 
