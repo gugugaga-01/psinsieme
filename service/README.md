@@ -1,6 +1,6 @@
 # MPSI Service
 
-gRPC-based multi-party PSI service with mTLS, threshold key distribution, and a Python client SDK.
+gRPC-based multi-party PSI service with mTLS, threshold key distribution, and a Python client SDK. Supports multiple protocols — each `psi_party` process can handle different protocols per-request.
 
 ## Building
 
@@ -12,58 +12,82 @@ make -j$(nproc)
 
 This produces two binaries: `psi_party` and `psi_dealer`.
 
+To enable YYH26 TT-MPSI protocol support:
+
+```bash
+cmake ../service -DMPSI_BUILD_YYH26=ON
+make -j$(nproc)
+```
+
 Prerequisites: gRPC, protobuf, NTL, GMP.
+
+## Supported Protocols
+
+| Protocol | Reference | Crypto Primitives | Dealer | Internal Transport |
+|----------|-----------|-------------------|--------|--------------------|
+| `ks05_t_mpsi` | Kissner & Song, CRYPTO 2005 | Paillier threshold encryption (3072-bit) | Required (trusted dealer) | gRPC (mTLS optional) |
+| `yyh26_tt_mpsi` | Yanai et al., NDSS 2026 | OPPRF + KKRT OT + BFV BOLE + Shamir SS | Not needed | Unencrypted TCP (BtEndpoint)* |
+
+Both protocols operate under the **semi-honest** (honest-but-curious) threat model.
+
+\* YYH26 internal crypto phases use unencrypted TCP via cryptoTools' BtEndpoint. This is inherited from the upstream library — cryptoTools' networking predates gRPC integration and uses its own socket layer. Protocol-level crypto (OT, BFV homomorphic encryption) already protects data confidentiality, so the lack of transport encryption does not leak plaintext inputs. However, traffic metadata is visible. Migrating these channels to gRPC with mTLS is tracked as future work.
+
+## Architecture
+
+Each data owner runs one `psi_party` process. The service supports **per-request protocol selection** — a single `psi_party` backend can handle both KS05 and YYH26 requests without restarting. The client specifies the protocol in each `ComputeIntersection` call.
+
+```
+                  ┌─────────────────────────┐
+                  │       psi_dealer        │ (optional, KS05 only)
+                  │  Paillier key distrib.  │
+                  └────────┬────────────────┘
+                           │ key shares
+         ┌─────────────────┼─────────────────┐
+         ▼                 ▼                  ▼
+  ┌─────────────┐  ┌─────────────┐   ┌─────────────┐
+  │  psi_party  │  │  psi_party  │   │  psi_party  │
+  │  Party 0    │  │  Party 1    │   │  Party 2    │
+  │  :50090     │  │  :50091     │   │  :50092     │
+  └──────┬──────┘  └──────┬──────┘   └──────┬──────┘
+         │                │                  │
+    Python/gRPC      Python/gRPC        Python/gRPC
+     clients          clients            clients
+```
 
 ## Quick Start
 
 ```bash
-# Run a 3-party demo (insecure, localhost)
+# KS05: 3-party with dealer (insecure, localhost)
 bash service/demos/ks05_t_mpsi/demo.sh
 
-# 5-party with mTLS
-bash service/demos/ks05_t_mpsi/demo.sh --parties 5 --tls
-
-# Threshold mode (elements in >= 2 of 3 parties)
-bash service/demos/ks05_t_mpsi/demo.sh --parties 3 --threshold 2
+# YYH26: 3-party without dealer
+bash service/demos/yyh26_tt_mpsi/demo.sh
 ```
 
 ## Usage
 
-### Step 1: Start the dealer
+### Step 1: Start party processes
 
-The dealer generates Paillier threshold keys and distributes shares to each party.
-It only needs to run during startup — once all parties have their keys, the dealer can shut down.
-
-```bash
-./psi_dealer --parties 3 --listen 0.0.0.0:53050
-```
-
-### Step 2: Start party processes
-
-Each data owner runs one `psi_party` process. No roles are assigned at startup — the party is generic.
+Each data owner runs one `psi_party` process:
 
 - `--address` is this party's own inter-party address.
 - `--addresses` lists the OTHER parties' addresses (not including self).
+- `--dealer` fetches Paillier keys at startup (required for KS05, optional otherwise).
 - Addresses are merged and sorted internally for consistent index assignment.
 
 ```bash
-# On machine 10.0.0.1
+# With dealer
 ./psi_party --address 10.0.0.1:53000 \
             --addresses 10.0.0.2:53000,10.0.0.3:53000 \
             --dealer 10.0.0.1:53050 --listen 0.0.0.0:50090
 
-# On machine 10.0.0.2
-./psi_party --address 10.0.0.2:53000 \
-            --addresses 10.0.0.1:53000,10.0.0.3:53000 \
-            --dealer 10.0.0.1:53050 --listen 0.0.0.0:50090
-
-# On machine 10.0.0.3
-./psi_party --address 10.0.0.3:53000 \
-            --addresses 10.0.0.1:53000,10.0.0.2:53000 \
-            --dealer 10.0.0.1:53050 --listen 0.0.0.0:50090
+# Without dealer
+./psi_party --address 10.0.0.1:53000 \
+            --addresses 10.0.0.2:53000,10.0.0.3:53000 \
+            --listen 0.0.0.0:50090
 ```
 
-Or use a config file instead of command-line flags:
+Or use a config file:
 
 ```ini
 # party1.conf
@@ -71,24 +95,17 @@ address = 10.0.0.1:53000
 addresses = 10.0.0.2:53000,10.0.0.3:53000
 dealer = 10.0.0.1:53050
 listen = 0.0.0.0:50090
-protocol = ks05_t_mpsi
 ```
 
 ```bash
 ./psi_party --config party1.conf
 ```
 
-Command-line flags override config file values, so you can use a shared config and override per-party:
+Command-line flags override config file values.
 
-```bash
-./psi_party --config base.conf --address 10.0.0.2:53000
-```
+### Step 2: Submit data (Python client)
 
-The party topology is fixed at startup. To change who participates, restart all parties with new addresses and a new dealer.
-
-### Step 3: Submit data (Python client)
-
-Each client connects to their party's client-facing port and submits data with a **role** (`leader` or `member`) and the **leader's address**. The role is chosen per-request, not at startup — any party can be the leader.
+Each client connects to their party's client-facing port and submits data with a **role** (`leader` or `member`), the **leader's address**, and the **protocol** to use. The role and protocol are chosen per-request — any party can be the leader, and different requests can use different protocols.
 
 ```bash
 pip install grpcio grpcio-tools
@@ -105,6 +122,7 @@ with PsiClient("10.0.0.3:50090") as client:
         leader_address="10.0.0.3:53000",
         num_parties=3,
         threshold=3,
+        protocol="ks05_t_mpsi",  # or "yyh26_tt_mpsi"
     )
     print(intersection)
 
@@ -116,6 +134,7 @@ with PsiClient("10.0.0.1:50090") as client:
         leader_address="10.0.0.3:53000",
         num_parties=3,
         threshold=3,
+        protocol="ks05_t_mpsi",
     )
 ```
 
@@ -133,9 +152,97 @@ with PsiClient("10.0.0.1:50090") as client:
     )
 ```
 
+## KS05 T-MPSI Protocol
+
+The KS05 protocol (Crypto 2005) uses Paillier threshold encryption for multi-party PSI. It requires a trusted dealer for key distribution.
+
+### Dealer setup
+
+The dealer generates Paillier threshold keys and distributes shares to each party. It only needs to run during startup — once all parties have their keys, the dealer can shut down.
+
+```bash
+./psi_dealer --parties 3 --listen 0.0.0.0:53050
+```
+
+Each party must include `--dealer` to fetch keys:
+
+```bash
+./psi_party --address 10.0.0.1:53000 \
+            --addresses 10.0.0.2:53000,10.0.0.3:53000 \
+            --dealer 10.0.0.1:53050 --listen 0.0.0.0:50090
+```
+
+### Protocol details
+
+- **Crypto**: Paillier threshold encryption (3072-bit modulus, 128-bit security)
+- **Communication**: All inter-party communication uses gRPC (with optional mTLS)
+- **Threat model**: Semi-honest (honest-but-curious) adversaries
+- **Key distribution**: Trusted dealer model — the dealer sees all secret key shares
+
+## YYH26 TT-MPSI Protocol
+
+The YYH26 threshold TT-MPSI protocol (NDSS 2026) uses OPPRF, OT extensions (KKRT), and BFV-based BOLE for threshold secret sharing. It does **not** require a dealer.
+
+### Building prerequisites
+
+YYH26 links against pre-built libraries from the experiments directory. Build them first:
+
+```bash
+cd experiments/yyh26_ndss_tt-mpsi
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+```
+
+Then build the service with YYH26 enabled:
+
+```bash
+cd build
+cmake ../service -DMPSI_BUILD_YYH26=ON
+make -j$(nproc)
+```
+
+Prerequisites: Boost (system, thread), NTL, GMP, Miracl (pre-built in `thirdparty/`).
+
+### Running YYH26
+
+Start parties without `--dealer`:
+
+```bash
+./psi_party --address 10.0.0.1:53000 \
+            --addresses 10.0.0.2:53000,10.0.0.3:53000 \
+            --listen 0.0.0.0:50090
+```
+
+Python client usage specifies `protocol="yyh26_tt_mpsi"`:
+
+```python
+with PsiClient("10.0.0.1:50090") as client:
+    intersection, status = client.compute_intersection(
+        elements=["alice", "bob", "charlie"],
+        role="member",
+        leader_address="10.0.0.3:53000",
+        num_parties=3, threshold=3,
+        protocol="yyh26_tt_mpsi",
+    )
+```
+
+### Protocol details
+
+- **Crypto**: OPPRF + KKRT OT extensions + BFV homomorphic encryption (BOLE)
+- **Secret sharing**: Shamir secret sharing over 4 CRT moduli
+- **Communication**: gRPC for client API, unencrypted TCP (BtEndpoint) for internal crypto phases
+- **Threat model**: Semi-honest (honest-but-curious) adversaries
+- **Key distribution**: No dealer needed — keys are generated per-session
+
+### Current limitations
+
+- **Unencrypted TCP**: Internal crypto channels between parties use unencrypted TCP via cryptoTools' BtEndpoint (ports 11000+). Protocol-level crypto (OT, BFV) protects data confidentiality, but traffic is not transport-encrypted. Deploy on trusted networks or use external tunneling.
+- **Localhost only**: TCP connections currently use `"localhost"`. Multi-machine deployments require configurable hostnames (tracked as future work).
+
 ## mTLS
 
-When TLS is enabled, all communication (inter-party, dealer, client-facing) uses mutual TLS.
+When TLS is enabled, all gRPC communication (inter-party, dealer, client-facing) uses mutual TLS.
 
 ### Generating certificates
 
@@ -161,13 +268,11 @@ Certificate CN must match the party's index from sorted address order: `party0`,
 
 ### Starting services with TLS
 
-Pass `--certs-dir` to both the dealer and party binaries. Each process loads `ca.pem` for verification, and its own cert/key pair based on its identity:
+Pass `--certs-dir` to both the dealer and party binaries:
 
 ```bash
-# Dealer with TLS
 ./psi_dealer --parties 3 --listen 0.0.0.0:53050 --certs-dir certs/my_certs
 
-# Party with TLS
 ./psi_party --address 10.0.0.1:53000 \
             --addresses 10.0.0.2:53000,10.0.0.3:53000 \
             --dealer 10.0.0.1:53050 --listen 0.0.0.0:50090 \
@@ -175,7 +280,6 @@ Pass `--certs-dir` to both the dealer and party binaries. Each process loads `ca
 ```
 
 ```python
-# Python client with mTLS
 with PsiClient("10.0.0.1:50090", tls=True,
                ca_cert="ca.pem",
                client_cert="party0.pem",
@@ -196,9 +300,9 @@ with PsiClient("10.0.0.1:50090", tls=True,
 |------|----------|-------------|
 | `--address` | Yes | This party's own inter-party address |
 | `--addresses` | Yes | Other parties' addresses (comma-separated) |
-| `--dealer` | Yes | Dealer address for key distribution |
+| `--dealer` | No | Dealer address (enables KS05; omit for YYH26-only) |
 | `--listen` | No | Client-facing listen address (default: `0.0.0.0:50090`) |
-| `--protocol` | No | Protocol to run (default: `ks05_t_mpsi`) |
+| `--protocol` | No | Default protocol (default: `ks05_t_mpsi`); clients can override per-request |
 | `--certs-dir` | No | Directory with `ca.pem`, `partyN.pem`, `partyN-key.pem` |
 | `--config` | No | Config file (key = value format, CLI flags override) |
 
@@ -220,7 +324,7 @@ with PsiClient("10.0.0.1:50090", tls=True,
 | `leader_address` | `""` | Inter-party address of the leader (required) |
 | `num_parties` | 3 | Number of participating parties |
 | `threshold` | 3 | Elements in >= threshold parties appear in result |
-| `protocol` | `"ks05_t_mpsi"` | Protocol identifier |
+| `protocol` | `"ks05_t_mpsi"` | Protocol identifier (`ks05_t_mpsi` or `yyh26_tt_mpsi`) |
 | `timeout` | None | RPC timeout in seconds |
 
 ## Tests
@@ -239,7 +343,8 @@ cd build && ctest --output-on-failure
 
 ## Security Notes
 
-- **Semi-honest model**: The KS05 protocol assumes honest-but-curious adversaries. Parties follow the protocol correctly but may try to learn extra information.
-- **Trusted dealer**: Key generation uses a trusted dealer — the dealer sees all secret key shares. It wipes secrets after distribution but must be trusted not to retain them.
+- **Semi-honest model**: Both KS05 and YYH26 protocols assume honest-but-curious adversaries. Parties follow the protocol correctly but may try to learn extra information.
+- **Trusted dealer (KS05 only)**: Key generation uses a trusted dealer — the dealer sees all secret key shares. It wipes secrets after distribution but must be trusted not to retain them.
 - **CN verification**: When mTLS is enabled, the dealer and inter-party servers verify the peer's certificate CN matches the claimed party identity.
 - **Key size**: Paillier modulus is 3072-bit (128-bit security per NIST SP 800-57).
+- **Unencrypted TCP (YYH26)**: Internal crypto channels use unencrypted TCP. See [YYH26 Current limitations](#current-limitations) above.

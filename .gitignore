@@ -41,6 +41,11 @@ service/certs/test/
 *.swo
 *~
 
+# YYH26 third-party dependencies (build from source, not committed)
+experiments/yyh26_ndss_tt-mpsi/libOLE/src/lib/
+experiments/yyh26_ndss_tt-mpsi/libOLE/third_party/cryptoTools/
+experiments/yyh26_ndss_tt-mpsi/libOLE/bin/
+
 # YYH26 runtime artifacts
 experiments/yyh26_ndss_tt-mpsi/input/
 experiments/yyh26_ndss_tt-mpsi/runtime_*.txt

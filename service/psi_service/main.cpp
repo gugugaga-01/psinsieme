@@ -32,9 +32,13 @@
 
 static void printUsage() {
     std::cerr << "Usage: psi_party --address ADDR --addresses ADDR,ADDR,...\n"
-              << "                 --dealer ADDR [--listen ADDR]\n"
+              << "                 [--dealer ADDR] [--listen ADDR]\n"
               << "                 [--protocol NAME] [--certs-dir DIR]\n"
-              << "                 [--config FILE]\n";
+              << "                 [--config FILE]\n"
+              << "\n"
+              << "  --dealer is required for ks05_t_mpsi but optional for other protocols.\n"
+              << "  If provided, Paillier keys are fetched at startup, enabling KS05 requests.\n"
+              << "  The protocol can also be selected per-request by the client.\n";
 }
 
 int main(int argc, char** argv) {
@@ -93,11 +97,9 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (config.dealer_addr.empty()) {
-        std::cerr << "Error: --dealer is required" << std::endl;
-        printUsage();
-        return 1;
-    }
+    // Dealer is optional. If provided, Paillier keys are fetched at startup,
+    // enabling KS05 requests. Without a dealer, only protocols that don't
+    // require Paillier keys (e.g. yyh26_tt_mpsi) are available.
 
     // Parse other parties' addresses and merge with our own
     {
@@ -134,32 +136,40 @@ int main(int argc, char** argv) {
         config.client_tls = config.inter_party_tls;
     }
 
-    mpsi::TlsConfig dealer_tls;
-    if (config.inter_party_tls.enable_mtls) {
-        dealer_tls = config.inter_party_tls;
-    }
-
     mpsi::ks05::Logger::getInstance().setEnabled(true);
-
-    // Fetch keys from dealer
-    mpsi::ks05::PubKey pk;
-    mpsi::ks05::PrivKey sk;
-    std::cerr << "[Party " << config.party_id
-              << "] Connecting to dealer at " << config.dealer_addr
-              << (dealer_tls.enable_mtls ? " (mTLS)" : " (insecure)")
-              << "..." << std::endl;
-
-    if (!mpsi::fetchKeyShareFromDealer(
-            config.dealer_addr, config.party_id, config.num_parties,
-            pk, sk, dealer_tls)) {
-        std::cerr << "[Party " << config.party_id
-                  << "] Failed to get key share from dealer" << std::endl;
-        return 1;
-    }
 
     // Start client-facing PsiService
     mpsi::PsiServiceImpl psi_service(config);
-    psi_service.setKeys(pk, sk);
+
+    // Fetch keys from dealer if --dealer is provided (enables KS05 protocol)
+    if (!config.dealer_addr.empty()) {
+        mpsi::TlsConfig dealer_tls;
+        if (config.inter_party_tls.enable_mtls) {
+            dealer_tls = config.inter_party_tls;
+        }
+
+        mpsi::ks05::PubKey pk;
+        mpsi::ks05::PrivKey sk;
+        std::cerr << "[Party " << config.party_id
+                  << "] Connecting to dealer at " << config.dealer_addr
+                  << (dealer_tls.enable_mtls ? " (mTLS)" : " (insecure)")
+                  << "..." << std::endl;
+
+        if (!mpsi::fetchKeyShareFromDealer(
+                config.dealer_addr, config.party_id, config.num_parties,
+                pk, sk, dealer_tls)) {
+            std::cerr << "[Party " << config.party_id
+                      << "] Failed to get key share from dealer" << std::endl;
+            return 1;
+        }
+
+        psi_service.setKeys(pk, sk);
+    } else {
+        std::cerr << "[Party " << config.party_id
+                  << "] No dealer configured. KS05 protocol unavailable; "
+                  << "other protocols (e.g. yyh26_tt_mpsi) can still be used."
+                  << std::endl;
+    }
 
     auto creds = mpsi::makeServerCredentials(config.client_tls);
 
