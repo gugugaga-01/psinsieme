@@ -110,6 +110,28 @@ using dcrt_params_t = DCRT_Fast_Four_Limb_Reduction_Params<IntCryptoRing, UP>;
 using SchemeType = BFV_DCRT<enc_ctx_t, dcrt_params_t>;
 using encoding_input_t = typename enc_ctx_t::encoding_input_t;
 
+// Split 128-bit CRT-packed values into 4 × 32-bit BOLEReceiverInput objects.
+template <typename encoding_input_t>
+struct FourBOLEReceiverInputs {
+    std::vector<BOLEReceiverInput<encoding_input_t>> receiverInputs;
+    FourBOLEReceiverInputs(ui32 numBlocks) {
+        for (int i = 0; i < 4; i++)
+            receiverInputs.emplace_back(numBlocks);
+    }
+    void processModule(const std::vector<std::vector<ui128>>& ReInput) {
+        for (ui32 blockIdx = 0; blockIdx < ReInput.size(); blockIdx++) {
+            for (ui32 slotIdx = 0; slotIdx < ReInput[blockIdx].size(); slotIdx++) {
+                ui128 val = ReInput[blockIdx][slotIdx];
+                for (int k = 0; k < 4; k++) {
+                    ui64 shift = (3 - k) * 32;
+                    receiverInputs[k].x[blockIdx].vals[slotIdx] =
+                        (val >> shift) & 0xFFFFFFFF;
+                }
+            }
+        }
+    }
+};
+
 // ============================================================================
 // BOLE helpers (one per CRT modulus)
 // ============================================================================
@@ -118,7 +140,7 @@ template <uint64_t p>
 static BOLEReceiverOutput<encoding_input_t> runBoleReceiver(
     const BOLEReceiverInput<encoding_input_t>& input,
     const typename SchemeType::SecretKey& sk,
-    osuCrypto::Channel& chl)
+    osuCryptoNew::Channel& chl)
 {
     using PR = DCRT_Poly_Ring<params<uint64_t>, LOG_N>;
     using EC = EncodingContext<PR, p>;
@@ -134,7 +156,7 @@ template <uint64_t p>
 static void runBoleSender(
     BOLESenderInput<encoding_input_t>& input,
     const typename SchemeType::PublicKey& pk,
-    osuCrypto::Channel& chl)
+    osuCryptoNew::Channel& chl)
 {
     using PR = DCRT_Poly_Ring<params<uint64_t>, LOG_N>;
     using EC = EncodingContext<PR, p>;
@@ -150,7 +172,7 @@ static void runBoleSender(
 static std::vector<std::vector<ui128>> runFourBoleReceiver(
     std::vector<std::vector<ui128>>& receiverInput,
     u64 boleNum,
-    osuCrypto::Channel& chl)
+    osuCryptoNew::Channel& chl)
 {
     const SchemeType scheme(STD_DEV);
     auto kpSeeded = scheme.KeyGenSeeded();
@@ -186,7 +208,7 @@ static void runFourBoleSender(
     std::vector<std::vector<ui128>>& aValues,
     std::vector<std::vector<ui128>>& bValues,
     u64 boleNum,
-    osuCrypto::Channel& chl)
+    osuCryptoNew::Channel& chl)
 {
     const SchemeType scheme(STD_DEV);
     using SeededPublicKey = typename SchemeType::PublicKeySeeded;
@@ -246,6 +268,12 @@ struct ProtocolContext {
     BtIOService* ios = nullptr;
     std::vector<std::unique_ptr<BtEndpoint>> ep;
     std::vector<std::vector<osuCrypto::Channel*>> chls;
+
+    // Separate OLE connections (osuCryptoNew namespace, ports oleBasePort+)
+    osuCryptoNew::IOService* iosOLE = nullptr;
+    std::vector<osuCryptoNew::Session> epOLE;
+    std::vector<osuCryptoNew::Channel> chlsOLE;
+
     binSet bins;
     std::unique_ptr<PRNG> prng;
 
@@ -256,12 +284,22 @@ struct ProtocolContext {
 
     std::vector<NTL::ZZ> fourModuloZZ;
 
+    // Number of real (non-padding) elements
+    u64 realSize;
+
     void setup(const TTMpsiConfig& config, const std::vector<std::string>& inputs) {
         myIdx = config.partyID;
         nParties = config.numParties;
         threshold = config.threshold;
-        setSize = inputs.size();
+        realSize = inputs.size();
         leaderIdx = nParties - 1;
+
+        // Protocol requires setSize >= 32 for hashing bins to work correctly.
+        // Pad with unique dummy elements that won't collide across parties.
+        constexpr u64 MIN_SET_SIZE = 32;
+        setSize = realSize;
+        if (setSize < MIN_SET_SIZE)
+            setSize = MIN_SET_SIZE;
 
         prng = std::make_unique<PRNG>(_mm_set_epi32(4253465, 3434565, myIdx, myIdx));
 
@@ -274,15 +312,24 @@ struct ProtocolContext {
         // Convert inputs to block and ZZ
         setBlocks.resize(setSize);
         setZZ.resize(setSize);
-        for (u64 i = 0; i < setSize; i++) {
+        for (u64 i = 0; i < realSize; i++) {
             setBlocks[i] = stringToBlock(inputs[i]);
-            uint64_t val = 0;
-            size_t len = std::min(inputs[i].size(), sizeof(val));
-            std::memcpy(&val, inputs[i].data(), len);
-            setZZ[i] = NTL::conv<NTL::ZZ>(val);
+            ui128 blockVal = blockToU128(setBlocks[i]);
+            uint8_t zzBytes[16];
+            std::memcpy(zzBytes, &blockVal, 16);
+            setZZ[i] = NTL::ZZFromBytes(zzBytes, 16);
+        }
+        // Pad with party-unique dummy elements (won't intersect with other parties)
+        for (u64 i = realSize; i < setSize; i++) {
+            // Use party-specific seed to ensure uniqueness across parties
+            setBlocks[i] = _mm_set_epi64x(
+                static_cast<int64_t>(0xDEADBEEF00000000ULL | (myIdx << 16) | i),
+                static_cast<int64_t>(0xCAFEBABE00000000ULL | (myIdx << 16) | i));
+            uint64_t dummyVal = 0xDEAD000000ULL + myIdx * 100000 + i;
+            setZZ[i] = NTL::conv<NTL::ZZ>(static_cast<long>(dummyVal));
         }
 
-        // TCP connections
+        // OPPRF TCP connections (ports tcpBasePort+)
         std::string name("psi");
         ios = new BtIOService(1);
         ep.resize(nParties);
@@ -306,12 +353,47 @@ struct ProtocolContext {
             }
         }
 
+        // OLE TCP connections (ports tcpBasePort + 5900 +)
+        uint32_t oleBasePort = config.tcpBasePort + 5900;
+        iosOLE = new osuCryptoNew::IOService(0);
+        epOLE.resize(nParties);
+        for (u64 i = 0; i < nParties; i++) {
+            if (i < myIdx) {
+                uint32_t port = oleBasePort + i * 100 + myIdx;
+                epOLE[i].start(*iosOLE, config.getHostname(i), port,
+                               osuCryptoNew::SessionMode::Client, name);
+            } else if (i > myIdx) {
+                uint32_t port = oleBasePort + myIdx * 100 + i;
+                epOLE[i].start(*iosOLE, config.getHostname(i), port,
+                               osuCryptoNew::SessionMode::Server, name);
+            }
+        }
+        chlsOLE.resize(nParties);
+        for (u64 i = 0; i < nParties; i++) {
+            if (i != myIdx)
+                chlsOLE[i] = epOLE[i].addChannel(name, name);
+        }
+
         // Hashing
         bins.init(myIdx, nParties, setSize, PSI_SEC_PARAM, 0);
         bins.hashing2Bins(setBlocks, 1);
     }
 
-    ~ProtocolContext() {
+    void cleanup() {
+        // Close OLE channels and sessions first
+        for (u64 i = 0; i < nParties; i++) {
+            if (i != myIdx) {
+                chlsOLE[i].close();
+                epOLE[i].stop();
+            }
+        }
+        if (iosOLE) {
+            iosOLE->stop();
+            delete iosOLE;
+            iosOLE = nullptr;
+        }
+
+        // Then close OPPRF channels and endpoints
         for (u64 i = 0; i < nParties; i++) {
             if (i != myIdx) {
                 for (auto* ch : chls[i])
@@ -322,7 +404,12 @@ struct ProtocolContext {
         if (ios) {
             ios->stop();
             delete ios;
+            ios = nullptr;
         }
+    }
+
+    ~ProtocolContext() {
+        cleanup();
     }
 };
 
@@ -547,47 +634,45 @@ static Phase2Result runPhase2(ProtocolContext& ctx, Phase1Result& phase1) {
         std::vector<std::vector<ui128>> leaderInput(leaderBoleNum, std::vector<ui128>(OLE_SIZE));
         NTL::ZZ element;
 
-        for (u64 pIdx = 0; pIdx < ctx.nParties - 1; pIdx++) {
+        {
             int row = 0, col = 0;
-            NTL::SetSeed(NTL::ZZ(ctx.myIdx));
-            for (u64 bIdx = 0; bIdx < ctx.bins.mCuckooBins.mBins.size(); bIdx++) {
-                auto& bin = ctx.bins.mCuckooBins.mBins[bIdx];
-                ui128 inputIdx;
-                if (!bin.isEmpty()) {
-                    inputIdx = blockToU128(ctx.setBlocks[bin.idx()]);
-                } else {
-                    NTL::RandomBnd(element, ctx.p);
-                    inputIdx = zzToUi128(element);
-                }
+            for (u64 pIdx = 0; pIdx < ctx.nParties - 1; pIdx++) {
+                NTL::SetSeed(NTL::ZZ(ctx.myIdx));
+                for (u64 bIdx = 0; bIdx < ctx.bins.mCuckooBins.mBins.size(); bIdx++) {
+                    auto& bin = ctx.bins.mCuckooBins.mBins[bIdx];
+                    ui128 inputIdx;
+                    if (!bin.isEmpty()) {
+                        inputIdx = blockToU128(ctx.setBlocks[bin.idx()]);
+                    } else {
+                        NTL::RandomBnd(element, ctx.p);
+                        inputIdx = zzToUi128(element);
+                    }
 
-                u64 numMax = (bIdx < ctx.bins.mSimpleBins.mBinCount[0])
-                    ? ctx.bins.mSimpleBins.mMaxBinSize[0]
-                    : ctx.bins.mSimpleBins.mMaxBinSize[1];
+                    u64 numMax = (bIdx < ctx.bins.mSimpleBins.mBinCount[0])
+                        ? ctx.bins.mSimpleBins.mMaxBinSize[0]
+                        : ctx.bins.mSimpleBins.mMaxBinSize[1];
 
-                for (u64 e = 0; e < numMax; e++) {
-                    if (col >= static_cast<int>(OLE_SIZE)) { row++; col = 0; }
-                    leaderInput[row][col] = inputIdx;
-                    col++;
+                    for (u64 e = 0; e < numMax; e++) {
+                        if (col >= static_cast<int>(OLE_SIZE)) { row++; col = 0; }
+                        leaderInput[row][col] = inputIdx;
+                        col++;
+                    }
                 }
             }
         }
 
-        // Replicate input across CRT slots
+        // Reduce input mod each CRT modulus and pack into CRT slots
         std::vector<std::vector<ui128>> reInput(leaderBoleNum, std::vector<ui128>(OLE_SIZE));
         for (u64 i = 0; i < leaderBoleNum; i++) {
             for (u64 j = 0; j < OLE_SIZE; j++) {
-                ui128 input = 0;
-                ui128 elem = leaderInput[i][j];
-                for (uint32_t k = 0; k < 4; k++)
-                    input |= static_cast<ui128>(elem) << ((3 - k) * 32);
-                reInput[i][j] = input;
+                reInput[i][j] = crtReduceAndPack(leaderInput[i][j]);
             }
         }
 
         // Run leader-client BOLEs
         std::vector<std::vector<std::vector<ui128>>> allRecvOLE(ctx.nParties - 1);
         for (u64 pIdx = 0; pIdx < ctx.nParties - 1; pIdx++) {
-            allRecvOLE[pIdx] = runFourBoleReceiver(reInput, leaderBoleNum, *ctx.chls[pIdx][0]);
+            allRecvOLE[pIdx] = runFourBoleReceiver(reInput, leaderBoleNum, ctx.chlsOLE[pIdx]);
         }
         // Store for later processing
         recvOLE.resize(leaderBoleNum);
@@ -722,7 +807,7 @@ static Phase2Result runPhase2(ProtocolContext& ctx, Phase1Result& phase1) {
             }
         }
 
-        runFourBoleSender(aValues, bValues, leaderBoleNum, *ctx.chls[ctx.leaderIdx][0]);
+        runFourBoleSender(aValues, bValues, leaderBoleNum, ctx.chlsOLE[ctx.leaderIdx]);
 
         // ---- Client ↔ Client BOLEs ----
         u64 clientOleNum = ctx.bins.mSimpleBins.mBinCount[0] * ctx.bins.mSimpleBins.mMaxBinSize[0]
@@ -739,10 +824,7 @@ static Phase2Result runPhase2(ProtocolContext& ctx, Phase1Result& phase1) {
                 for (u64 i = 0; i < eNum; i++) {
                     if (col >= OLE_SIZE) { row++; col = 0; }
                     ui128 elem = blockToU128(ctx.setBlocks[bin.mIdx[i]]);
-                    ui128 packed = 0;
-                    for (uint32_t k = 0; k < 4; k++)
-                        packed |= static_cast<ui128>(elem) << ((3 - k) * 32);
-                    clientInput[row][col] = packed;
+                    clientInput[row][col] = crtReduceAndPack(elem);
                     col++;
                 }
 
@@ -754,10 +836,7 @@ static Phase2Result runPhase2(ProtocolContext& ctx, Phase1Result& phase1) {
                     NTL::ZZ randElem;
                     NTL::RandomBnd(randElem, ctx.p);
                     ui128 elem = zzToUi128(randElem);
-                    ui128 packed = 0;
-                    for (uint32_t k = 0; k < 4; k++)
-                        packed |= static_cast<ui128>(elem) << ((3 - k) * 32);
-                    clientInput[row][col] = packed;
+                    clientInput[row][col] = crtReduceAndPack(elem);
                     col++;
                 }
             }
@@ -770,7 +849,7 @@ static Phase2Result runPhase2(ProtocolContext& ctx, Phase1Result& phase1) {
 
             if (ctx.myIdx > pIdx) {
                 // We are BOLE receiver
-                clientRecvOLE[pIdx] = runFourBoleReceiver(clientInput, clientBoleNum, *ctx.chls[pIdx][0]);
+                clientRecvOLE[pIdx] = runFourBoleReceiver(clientInput, clientBoleNum, ctx.chlsOLE[pIdx]);
             } else {
                 // We are BOLE sender — prepare a/b from random/partUp values
                 std::vector<std::vector<ui128>> clientA(clientBoleNum, std::vector<ui128>(OLE_SIZE));
@@ -797,7 +876,7 @@ static Phase2Result runPhase2(ProtocolContext& ctx, Phase1Result& phase1) {
                     }
                 }
 
-                runFourBoleSender(clientA, clientB, clientBoleNum, *ctx.chls[pIdx][0]);
+                runFourBoleSender(clientA, clientB, clientBoleNum, ctx.chlsOLE[pIdx]);
             }
         }
 
@@ -806,7 +885,7 @@ static Phase2Result runPhase2(ProtocolContext& ctx, Phase1Result& phase1) {
             if (pIdx == ctx.myIdx) continue;
 
             if (ctx.myIdx < pIdx) {
-                clientRecvOLE[pIdx] = runFourBoleReceiver(clientInput, clientBoleNum, *ctx.chls[pIdx][0]);
+                clientRecvOLE[pIdx] = runFourBoleReceiver(clientInput, clientBoleNum, ctx.chlsOLE[pIdx]);
             } else {
                 std::vector<std::vector<ui128>> clientA(clientBoleNum, std::vector<ui128>(OLE_SIZE));
                 std::vector<std::vector<ui128>> clientB(clientBoleNum, std::vector<ui128>(OLE_SIZE));
@@ -832,7 +911,7 @@ static Phase2Result runPhase2(ProtocolContext& ctx, Phase1Result& phase1) {
                     }
                 }
 
-                runFourBoleSender(clientA, clientB, clientBoleNum, *ctx.chls[pIdx][0]);
+                runFourBoleSender(clientA, clientB, clientBoleNum, ctx.chlsOLE[pIdx]);
             }
         }
 
@@ -871,9 +950,10 @@ static Phase2Result runPhase2(ProtocolContext& ctx, Phase1Result& phase1) {
                     ui128 res = 0;
                     for (u64 m = 0; m < 4; m++) {
                         uint64_t shift = (3 - m) * 32;
-                        ui128 r = ((random >> shift) & 0xFFFFFFFF) % CRT_MODULI[m];
-                        ui128 p_val = ((partial >> shift) & 0xFFFFFFFF) % CRT_MODULI[m];
-                        ui128 temp = ((CRT_MODULI[m] - r) * inputIdx + p_val) % CRT_MODULI[m];
+                        uint64_t r = ((random >> shift) & 0xFFFFFFFF) % CRT_MODULI[m];
+                        uint64_t p_val = ((partial >> shift) & 0xFFFFFFFF) % CRT_MODULI[m];
+                        uint64_t x_m = static_cast<uint64_t>(inputIdx % CRT_MODULI[m]);
+                        uint64_t temp = ((CRT_MODULI[m] - r) * x_m + p_val) % CRT_MODULI[m];
                         res |= static_cast<ui128>(temp) << shift;
                     }
                     result.oleResult[ctx.myIdx][i][bIdx] = res;
@@ -1091,11 +1171,13 @@ std::vector<std::string> TTMpsiLeader::run(const std::vector<std::string>& input
     std::cerr << "[YYH26 Leader] Phase 4 (intersection): "
               << intersectionIndices.size() << " elements" << std::endl;
 
-    // Map indices back to original strings
+    // Map indices back to original strings (skip padding elements)
     std::vector<std::string> result;
     result.reserve(intersectionIndices.size());
-    for (u64 idx : intersectionIndices)
-        result.push_back(inputs[idx]);
+    for (u64 idx : intersectionIndices) {
+        if (idx < ctx.realSize)
+            result.push_back(inputs[idx]);
+    }
 
     return result;
 }
