@@ -1,7 +1,7 @@
 // main.cpp
 
 #include "../psi/OtMpsi.h"
-#include "../psi/Logger.h"
+#include "shared/util/logger.h"
 #include "cryptoTools/Common/CLP.h"
 #include "cryptoTools/Common/Timer.h"
 #include "coproto/Socket/AsioSocket.h"

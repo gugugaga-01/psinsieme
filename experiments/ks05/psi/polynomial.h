@@ -2,8 +2,8 @@
 #define OTMPSI_CRYPTO_POLYNOMIAL_H_
 
 #include <vector>
-#include "Defines.h"
-#include "paillier.h"
+#include "shared/crypto/defines.h"
+#include "shared/crypto/paillier.h"
 
 // Plaintext polynomial with ZZ coefficients
 struct Polynomial

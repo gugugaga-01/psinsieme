@@ -1,8 +1,8 @@
-#ifndef PAILLIER_H
-#define PAILLIER_H
+#ifndef EXPERIMENTS_SHARED_PAILLIER_H
+#define EXPERIMENTS_SHARED_PAILLIER_H
 
 #include <vector>
-#include "Defines.h"
+#include "defines.h"
 
 // Type aliases
 using Plaintext = ZZ;
@@ -52,4 +52,4 @@ Ciphertext rerand(const Ciphertext &c, const PubKey &pk);
 // Utility
 ZZ randCoprime(const ZZ &n);
 
-#endif // PAILLIER_H
+#endif // EXPERIMENTS_SHARED_PAILLIER_H

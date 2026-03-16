@@ -5,7 +5,10 @@
 #include <cstdint>
 #include <stdexcept>
 #include "MurmurHash3.h"
-#include "Defines.h"
+#include "shared/crypto/defines.h"
+
+// BEH21-specific constant
+constexpr double FALSE_POSITIVE_RATE = 0.0009; // < 2^(-10)
 
 /// Compute a 64-bit MurmurHash3 of a 16-byte block using the given seed.
 inline u64 murmurHash(const block &element, u32 seed)

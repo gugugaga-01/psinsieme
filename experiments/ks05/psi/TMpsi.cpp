@@ -1,6 +1,6 @@
 #include "TMpsi.h"
-#include "Logger.h"
-#include "Defines.h"
+#include "shared/util/logger.h"
+#include "shared/crypto/defines.h"
 #include "cryptoTools/Common/CuckooIndex.h"
 #include "volePSI/SimpleIndex.h"
 #include "polynomial.h"

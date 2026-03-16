@@ -1,8 +1,8 @@
 #pragma once
 
 #include <volePSI/RsOpprf.h>
-#include "Defines.h"
-#include "paillier.h"
+#include "shared/crypto/defines.h"
+#include "shared/crypto/paillier.h"
 
 struct TMpsiBase
 {
