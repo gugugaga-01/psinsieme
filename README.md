@@ -15,9 +15,11 @@ Experimental implementations of multi-party Private Set Intersection (PSI) proto
 ```
 multiparty-psi-protocols-experimental/
 ├── experiments/          # Academic reference implementations (plaintext TCP)
-│   ├── ks05/
-│   ├── beh21/
-│   └── yyh26/
+│   ├── shared/          # Shared crypto (paillier, defines, logger)
+│   ├── ks05/            # Kissner-Song CRYPTO'05 T-MPSI
+│   ├── beh21/           # Bay et al. TIFS'21 OT-MPSI
+│   ├── yyh26/           # YYH26 NDSS'26 TT-MPSI
+│   └── tools/           # Shared benchmark scripts
 └── service/              # gRPC service framework (mTLS, dealer, Python client)
     ├── proto/            # Protobuf definitions
     ├── core/             # Shared transport layer
