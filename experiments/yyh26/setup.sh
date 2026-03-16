@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Build upstream dependencies for yyh26_ndss_tt-mpsi.
+# Build upstream dependencies for yyh26.
 #
 # This script:
 #   1. Initialises the git submodules (upstream, libOLE)
@@ -75,7 +75,7 @@ echo "=== Step 5: Patch and build libOLE ==="
 
 # Patch 3: Rename osuCrypto -> osuCryptoNew in libOLE's cryptoTools and source.
 # This avoids namespace collisions with the OPPRF cryptoTools (upstream).
-if grep -q 'namespace osuCrypto$' libOLE/third_party/cryptoTools/cryptoTools/Common/Timer.h 2>/dev/null; then
+if grep -qP 'namespace osuCrypto\r?$' libOLE/third_party/cryptoTools/cryptoTools/Common/Timer.h 2>/dev/null; then
     echo "  Renaming osuCrypto -> osuCryptoNew in libOLE..."
     find libOLE/third_party/cryptoTools/cryptoTools/ libOLE/src/lib/ libOLE/src/demo/ \
         -type f \( -name "*.h" -o -name "*.cpp" -o -name "*.c" \) \
@@ -108,9 +108,14 @@ done
 # Patch 6: Qualify Channel& as osuCryptoNew::Channel& in libOLE headers
 # to avoid ambiguity with osuCrypto::Channel from OPPRF.
 for f in libOLE/src/lib/pke/gazelle-network.h libOLE/src/lib/pke/ole.h; do
-    if grep -q 'Channel& chl' "$f" 2>/dev/null && ! grep -q 'osuCryptoNew::Channel& chl' "$f" 2>/dev/null; then
-        sed -i 's/\bChannel& chl/osuCryptoNew::Channel\& chl/g' "$f"
+    if grep -qP '(?<!:)(?<!New::)Channel& chl' "$f" 2>/dev/null; then
+        # Only replace unqualified Channel& (not already prefixed with ::)
+        sed -i 's/\([^:]\)Channel& chl/\1osuCryptoNew::Channel\& chl/g' "$f"
+        # Handle line-start case
+        sed -i 's/^Channel& chl/osuCryptoNew::Channel\& chl/g' "$f"
         echo "  Patched $f (qualified Channel)"
+    else
+        echo "  $f already patched (Channel)"
     fi
 done
 
@@ -126,7 +131,7 @@ fi
 # Build libOLE's cryptoTools with -fPIC and renamed namespace.
 (
     cd libOLE/third_party/cryptoTools
-    cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    cmake . -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DBoost_NO_BOOST_CMAKE=ON
     make cryptoTools -j"$(nproc)"
     echo "  libOLE cryptoTools built"
 )

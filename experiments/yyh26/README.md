@@ -27,7 +27,7 @@ Our code:
 ```bash
 # 1. Clone with submodules
 git clone --recurse-submodules <repo-url>
-cd experiments/yyh26_ndss_tt-mpsi
+cd experiments/yyh26
 
 # 2. Install system dependencies
 sudo apt-get install build-essential cmake nasm libgmp-dev libgmpxx4ldbl libmpfr-dev libbenchmark-dev

@@ -188,7 +188,7 @@ The YYH26 threshold TT-MPSI protocol (NDSS 2026) uses OPPRF, OT extensions (KKRT
 YYH26 links against pre-built libraries from the experiments directory. Build them first:
 
 ```bash
-cd experiments/yyh26_ndss_tt-mpsi
+cd experiments/yyh26
 mkdir -p build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
