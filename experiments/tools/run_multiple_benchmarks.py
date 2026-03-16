@@ -2,37 +2,31 @@
 
 import os
 import subprocess
-
-def run_benchmarks():
-    # 1) Define the parameter space you want to explore
-    numParties_list       = [5]      # e.g. test with 4, 10, 20, 40 parties
-    threshold_list        = [3]       # one-to-one with numParties_list
-    size_list             = [4 ,5]       # exponent => 2^10, 2^12, 2^14
-    numRuns               = 10           # number of runs (single value now)
+import argparse
 
 
-    # Ensure one-to-one mapping
+def run_benchmarks(protocol, numParties_list, threshold_list, size_list, numRuns):
     assert len(numParties_list) == len(threshold_list), \
         "threshold_list must have the same length as numParties_list"
 
-    script_path = "tools/run_benchmark.py"
-    result_dir = "tools/experient_result"
+    script_path = os.path.join(os.path.dirname(__file__), "run_benchmark.py")
+    result_dir = os.path.join("tools", "experiment_result")
     os.makedirs(result_dir, exist_ok=True)
 
-    # Iterate over combinations; pair each numParties with its threshold
     for (numParties, threshold) in zip(numParties_list, threshold_list):
         for size in size_list:
-            run_single(numParties, threshold, size, numRuns,
-                           script_path, result_dir)
+            run_single(protocol, numParties, threshold, size, numRuns,
+                       script_path, result_dir)
 
-def run_single(numParties, threshold, size, numRuns,
+
+def run_single(protocol, numParties, threshold, size, numRuns,
                script_path, result_dir):
     senderSize = size
     receiverSize = size
 
-    # Construct a meaningful filename
     out_filename = (
-        f"parties{numParties}"
+        f"{protocol}"
+        f"_parties{numParties}"
         f"_thr{threshold}"
         f"_sender{senderSize}"
         f"_receiver{receiverSize}"
@@ -41,10 +35,10 @@ def run_single(numParties, threshold, size, numRuns,
 
     out_file_path = os.path.join(result_dir, out_filename)
 
-    # Build the command
     cmd = [
         "python3",
         script_path,
+        "--protocol", protocol,
         "--numParties", str(numParties),
         "--threshold", str(threshold),
         "--senderSize", str(senderSize),
@@ -53,10 +47,8 @@ def run_single(numParties, threshold, size, numRuns,
     ]
 
     print(f"Running: {cmd}")
-    # Execute the command and capture its output
     result = subprocess.run(cmd, capture_output=True, text=True)
 
-    # Write the output (stdout and stderr) to the file
     with open(out_file_path, "w") as f:
         f.write("Command:\n")
         f.write(" ".join(cmd) + "\n\n")
@@ -67,8 +59,19 @@ def run_single(numParties, threshold, size, numRuns,
 
     print(f"Finished. Output saved to {out_file_path}")
 
+
 def main():
-    run_benchmarks()
+    parser = argparse.ArgumentParser(description="Run multiple benchmarks over a parameter grid.")
+    parser.add_argument("--protocol", choices=["ks05", "beh21"], required=True)
+    parser.add_argument("--numParties", type=int, nargs="+", default=[5])
+    parser.add_argument("--threshold", type=int, nargs="+", default=[3])
+    parser.add_argument("--sizes", type=int, nargs="+", default=[4, 6])
+    parser.add_argument("--numRuns", type=int, default=1)
+    args = parser.parse_args()
+
+    run_benchmarks(args.protocol, args.numParties, args.threshold,
+                   args.sizes, args.numRuns)
+
 
 if __name__ == "__main__":
     main()
