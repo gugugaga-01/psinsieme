@@ -1,9 +1,9 @@
-#include "OtMpsi.h"
+#include "ot_mpsi.h"
 #include "shared/util/logger.h"
 #include "shared/crypto/defines.h"
 #include "cryptoTools/Common/CuckooIndex.h"
 #include "volePSI/SimpleIndex.h"
-#include "BloomFilter.h"
+#include "bloom_filter.h"
 
 #include <filesystem>
 #include <coproto/coproto.h>

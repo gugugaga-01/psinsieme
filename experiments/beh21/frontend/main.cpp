@@ -1,6 +1,6 @@
 // main.cpp
 
-#include "../psi/OtMpsi.h"
+#include "../protocol/ot_mpsi.h"
 #include "shared/util/logger.h"
 #include "cryptoTools/Common/CLP.h"
 #include "cryptoTools/Common/Timer.h"

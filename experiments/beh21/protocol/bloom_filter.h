@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
-#include "MurmurHash3.h"
+#include "../third_party/smhasher/MurmurHash3.h"
 #include "shared/crypto/defines.h"
 
 // BEH21-specific constant
