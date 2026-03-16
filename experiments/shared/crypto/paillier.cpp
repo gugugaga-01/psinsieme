@@ -154,13 +154,11 @@ void distributedKeyGen(long bits, long n, const ZZ &seed,
 
 Ciphertext enc(const Plaintext &m, const PubKey &pk)
 {
-    // Validate plaintext range: should be in [0, n)
-    Plaintext mm = m % pk.n;
-    if (mm < 0)
-        mm += pk.n;
+    // Normalize plaintext to [0, n): supports both unsigned and signed inputs
+    Plaintext mm = (m >= 0 ? m : pk.n + m);
 
     if (mm < 0 || mm >= pk.n)
-        throw std::invalid_argument("plaintext out of valid range [0, n)");
+        throw std::invalid_argument("plaintext out of valid range");
 
     ZZ r = randCoprime(pk.n);
 
@@ -193,6 +191,10 @@ Plaintext dec(const Ciphertext &c, const PubKey &pk, const PrivKey &sk)
 
     // Decrypt: m = L * μ mod n
     Plaintext m = NTL::MulMod(L, mu, pk.n);
+
+    // Convert to signed representation
+    if (m > pk.n / 2)
+        m -= pk.n;
 
     return m;
 }
@@ -268,6 +270,10 @@ Plaintext fuseDec(const std::vector<Ciphertext> &parts,
 
     // Decrypt: m = L * inv_temp mod n
     Plaintext m = NTL::MulMod(L, inv_temp, pk.n);
+
+    // Convert to signed representation
+    if (m > pk.n / 2)
+        m -= pk.n;
 
     return m;
 }
