@@ -11,6 +11,15 @@ if(NOT NTL_LIBRARY OR NOT GMP_LIBRARY)
                         "Install with: sudo apt install libntl-dev libgmp-dev")
 endif()
 
+# Common dependencies
+find_package(Threads REQUIRED)
+find_package(Boost QUIET COMPONENTS system thread regex)
+
+# Protocol dependencies (optional — KS05/BEH21 skip if not found)
+# Resolve at top level so transitive deps are visible to all subdirectories.
+find_package(volePSI QUIET)
+find_package(coproto QUIET)
+
 # Build options
 option(BUILD_KS05 "Build KS05 T-MPSI experiment" ON)
 option(BUILD_BEH21 "Build BEH21 OT-MPSI experiment" ON)
