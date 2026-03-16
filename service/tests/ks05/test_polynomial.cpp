@@ -109,3 +109,41 @@ TEST_F(PaillierPolynomialTest, EncryptedPolyAdd) {
     EXPECT_EQ(decrypt(p1.coefficients[1]), NTL::to_ZZ(6));
     EXPECT_EQ(decrypt(p1.coefficients[2]), NTL::to_ZZ(5));
 }
+
+TEST_F(PolynomialTest, SingleRoot) {
+    // Polynomial with root {3} mod 97: (x-3)
+    std::vector<ZZ> roots = {NTL::to_ZZ(3)};
+    Polynomial poly = encodeAsPolynomial(roots, mod);
+
+    EXPECT_EQ(poly.degree(), 1u);
+    EXPECT_EQ(poly.evaluateAt(NTL::to_ZZ(3), mod), NTL::to_ZZ(0));
+    EXPECT_NE(poly.evaluateAt(NTL::to_ZZ(4), mod), NTL::to_ZZ(0));
+}
+
+TEST_F(PolynomialTest, PolynomialAddition) {
+    // (1 + 2x) + (3 + 4x) = (4 + 6x)
+    Polynomial p1({NTL::to_ZZ(1), NTL::to_ZZ(2)});
+    Polynomial p2({NTL::to_ZZ(3), NTL::to_ZZ(4)});
+
+    p1.addPoly(p2);
+    EXPECT_EQ(p1.degree(), 1u);
+    EXPECT_EQ(p1.coefficients[0], NTL::to_ZZ(4));
+    EXPECT_EQ(p1.coefficients[1], NTL::to_ZZ(6));
+}
+
+TEST_F(PaillierPolynomialTest, EncryptedEvalAtRoot) {
+    // Polynomial with root {5} mod n — evaluating at 5 should decrypt to 0
+    std::vector<ZZ> roots = {NTL::to_ZZ(5)};
+    PaillierPolynomial epoly = encodeAsPaillierPolynomial(roots, pub);
+
+    Ciphertext ct = epoly.evaluateAt(NTL::to_ZZ(5));
+    EXPECT_EQ(decrypt(ct), NTL::to_ZZ(0));
+}
+
+TEST_F(PaillierPolynomialTest, EncryptedEvalAtNonRoot) {
+    std::vector<ZZ> roots = {NTL::to_ZZ(5)};
+    PaillierPolynomial epoly = encodeAsPaillierPolynomial(roots, pub);
+
+    Ciphertext ct = epoly.evaluateAt(NTL::to_ZZ(7));
+    EXPECT_NE(decrypt(ct), NTL::to_ZZ(0));
+}

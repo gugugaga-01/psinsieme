@@ -24,6 +24,23 @@ add_executable(test_ks05_dkg ks05/test_dkg.cpp)
 target_link_libraries(test_ks05_dkg PRIVATE ks05_protocol ks05_crypto mpsi_core GTest::gtest_main)
 gtest_discover_tests(test_ks05_dkg)
 
+# Config file parser unit tests
+add_executable(test_config_file core/test_config_file.cpp)
+target_include_directories(test_config_file PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(test_config_file PRIVATE GTest::gtest_main)
+gtest_discover_tests(test_config_file)
+
+# Serialization unit tests
+add_executable(test_serialization ks05/test_serialization.cpp)
+target_link_libraries(test_serialization PRIVATE ks05_protocol ks05_crypto mpsi_core GTest::gtest_main)
+gtest_discover_tests(test_serialization)
+
+# Logger unit tests
+add_executable(test_logger ks05/test_logger.cpp)
+target_include_directories(test_logger PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(test_logger PRIVATE GTest::gtest_main)
+gtest_discover_tests(test_logger)
+
 # === Integration Tests ===
 
 # In-process integration test (no gRPC)
