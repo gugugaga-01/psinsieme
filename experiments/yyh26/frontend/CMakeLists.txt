@@ -60,6 +60,8 @@ target_link_libraries(frontend.exe
     mpfr
     gmpxx
     gmp
+    ntl
+    gf2x
     benchmark
     pthread
     rt
