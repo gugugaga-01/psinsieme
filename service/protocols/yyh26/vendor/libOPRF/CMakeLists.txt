@@ -10,7 +10,12 @@ add_library(libOPRF STATIC ${LIBOPRF_SRCS})
 
 target_include_directories(libOPRF PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/..   # vendor/ root for cryptoTools, libOTe headers
+)
+# Headers for upstream deps (cryptoTools, libOTe) come from the install prefix
+target_include_directories(libOPRF PRIVATE
+    ${YYH26_DEPS_PREFIX}/include/yyh26/cryptoTools
+    ${YYH26_DEPS_PREFIX}/include/yyh26/libOTe
+    ${YYH26_DEPS_PREFIX}/include/yyh26/miracl/include
 )
 
 # These are found by the parent CMakeLists.txt

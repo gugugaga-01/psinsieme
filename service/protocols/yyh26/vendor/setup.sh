@@ -1,22 +1,15 @@
 #!/bin/bash
 # Build YYH26 upstream dependencies from source and install to a prefix.
 #
-# This script builds the C++ libraries that the YYH26 protocol links against:
-#   - cryptoTools (upstream version, Bt* networking)
-#   - libOTe (oblivious transfer extensions)
-#   - miracl (big-number / ECC library)
-#   - libOLE (oblivious linear evaluation via Gazelle)
-#   - libOLE's vendored cryptoTools (newer version, async networking)
-#
-# Headers are already vendored in this directory; this script only builds
-# the .a/.so libraries.
+# This script builds the C++ libraries that the YYH26 protocol links against
+# and installs both libraries and headers to a prefix directory.
 #
 # Usage:
 #   bash setup.sh [PREFIX]
 #
-# Default PREFIX is /usr/local. Libraries are installed to PREFIX/lib/.
+# Default PREFIX is /usr/local.
 # After running, configure CMake with:
-#   cmake .. -DMPSI_BUILD_YYH26=ON -DCMAKE_PREFIX_PATH=PREFIX
+#   cmake .. -DMPSI_BUILD_YYH26=ON -DYYH26_DEPS_PREFIX=PREFIX
 #
 # Prerequisites:
 #   - CMake >= 3.16, make, g++, clang++
@@ -62,7 +55,7 @@ make -j"$(nproc)" 2>/dev/null || {
     make -f Makefile.src -j"$(nproc)" 2>/dev/null || true
 }
 
-# Step 3: Install libraries to prefix
+# Step 3: Install libraries
 echo ""
 echo "--- Installing libraries to $PREFIX/lib ---"
 mkdir -p "$PREFIX/lib"
@@ -83,16 +76,62 @@ install_lib "$YYH26_ROOT/upstream/lib/liblibOTe.a"
 install_lib "$YYH26_ROOT/upstream/lib/libcryptoTools.a"
 install_lib "$YYH26_ROOT/upstream/thirdparty/linux/miracl/miracl/source/libmiracl.a"
 
-# gazelle needs special handling (shared library)
 if [ -f "$YYH26_ROOT/libOLE/bin/lib/libgazelle.so" ]; then
     cp "$YYH26_ROOT/libOLE/bin/lib/libgazelle.so" "$PREFIX/lib/"
     echo "  Installed: libgazelle.so"
 fi
 
-# libOLE's cryptoTools (different version)
 if [ -f "$YYH26_ROOT/libOLE/third_party/cryptoTools/lib/libcryptoTools.a" ]; then
     cp "$YYH26_ROOT/libOLE/third_party/cryptoTools/lib/libcryptoTools.a" "$PREFIX/lib/libcryptoTools_ole.a"
     echo "  Installed: libcryptoTools_ole.a (libOLE version)"
+fi
+
+# Step 4: Install headers
+echo ""
+echo "--- Installing headers to $PREFIX/include/yyh26 ---"
+INCLUDE_DIR="$PREFIX/include/yyh26"
+mkdir -p "$INCLUDE_DIR"
+
+# Upstream cryptoTools headers (Bt* networking version)
+if [ -d "$YYH26_ROOT/upstream/cryptoTools" ]; then
+    cp -r "$YYH26_ROOT/upstream/cryptoTools/Common" "$INCLUDE_DIR/cryptoTools/" 2>/dev/null
+    cp -r "$YYH26_ROOT/upstream/cryptoTools/Crypto" "$INCLUDE_DIR/cryptoTools/" 2>/dev/null
+    cp -r "$YYH26_ROOT/upstream/cryptoTools/Network" "$INCLUDE_DIR/cryptoTools/" 2>/dev/null
+    echo "  Installed: cryptoTools headers"
+fi
+
+# libOTe headers
+if [ -d "$YYH26_ROOT/upstream/libOTe" ]; then
+    mkdir -p "$INCLUDE_DIR/libOTe"
+    cp -r "$YYH26_ROOT/upstream/libOTe/NChooseOne" "$INCLUDE_DIR/libOTe/" 2>/dev/null
+    cp -r "$YYH26_ROOT/upstream/libOTe/TwoChooseOne" "$INCLUDE_DIR/libOTe/" 2>/dev/null
+    cp -r "$YYH26_ROOT/upstream/libOTe/Base" "$INCLUDE_DIR/libOTe/" 2>/dev/null
+    cp -r "$YYH26_ROOT/upstream/libOTe/Tools" "$INCLUDE_DIR/libOTe/" 2>/dev/null
+    echo "  Installed: libOTe headers"
+fi
+
+# MIRACL headers
+if [ -d "$YYH26_ROOT/upstream/thirdparty/linux/miracl/miracl/include" ]; then
+    mkdir -p "$INCLUDE_DIR/miracl/include"
+    cp "$YYH26_ROOT/upstream/thirdparty/linux/miracl/miracl/include/"*.h "$INCLUDE_DIR/miracl/include/" 2>/dev/null
+    echo "  Installed: miracl headers"
+fi
+
+# libOLE headers
+if [ -d "$YYH26_ROOT/libOLE/src/lib" ]; then
+    mkdir -p "$INCLUDE_DIR/libOLE/src/lib"
+    cp -r "$YYH26_ROOT/libOLE/src/lib/pke" "$INCLUDE_DIR/libOLE/src/lib/" 2>/dev/null
+    cp -r "$YYH26_ROOT/libOLE/src/lib/math" "$INCLUDE_DIR/libOLE/src/lib/" 2>/dev/null
+    cp -r "$YYH26_ROOT/libOLE/src/lib/bigint" "$INCLUDE_DIR/libOLE/src/lib/" 2>/dev/null
+    cp -r "$YYH26_ROOT/libOLE/src/lib/utils" "$INCLUDE_DIR/libOLE/src/lib/" 2>/dev/null
+    echo "  Installed: libOLE headers"
+fi
+
+# libOLE's vendored cryptoTools (newer version)
+if [ -d "$YYH26_ROOT/libOLE/third_party/cryptoTools/cryptoTools" ]; then
+    mkdir -p "$INCLUDE_DIR/libOLE/third_party/cryptoTools"
+    cp -r "$YYH26_ROOT/libOLE/third_party/cryptoTools/cryptoTools" "$INCLUDE_DIR/libOLE/third_party/cryptoTools/" 2>/dev/null
+    echo "  Installed: libOLE cryptoTools headers"
 fi
 
 echo ""
@@ -100,5 +139,5 @@ echo "=== Done ==="
 echo ""
 echo "To build the service with YYH26 support:"
 echo "  mkdir -p build && cd build"
-echo "  cmake .. -DMPSI_BUILD_YYH26=ON -DCMAKE_PREFIX_PATH=$PREFIX"
+echo "  cmake .. -DMPSI_BUILD_YYH26=ON -DYYH26_DEPS_PREFIX=$PREFIX"
 echo "  make -j\$(nproc)"

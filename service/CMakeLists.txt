@@ -112,19 +112,25 @@ option(MPSI_BUILD_YYH26 "Build YYH26 TT-MPSI protocol support" OFF)
 if(MPSI_BUILD_YYH26)
     set(YYH26_VENDOR_DIR "${CMAKE_CURRENT_SOURCE_DIR}/protocols/yyh26/vendor")
 
-    # Find pre-built upstream libraries (installed by vendor/setup.sh or found via CMAKE_PREFIX_PATH)
-    find_library(LIBOTE_LIBRARY libOTe HINTS "${CMAKE_PREFIX_PATH}/lib")
-    find_library(CRYPTOTOOLS_LIBRARY cryptoTools HINTS "${CMAKE_PREFIX_PATH}/lib")
-    find_library(MIRACL_LIBRARY miracl HINTS "${CMAKE_PREFIX_PATH}/lib")
-    find_library(GAZELLE_LIBRARY gazelle HINTS "${CMAKE_PREFIX_PATH}/lib")
-    find_library(CRYPTOTOOLS_OLE_LIBRARY cryptoTools_ole HINTS "${CMAKE_PREFIX_PATH}/lib")
+    # YYH26_DEPS_PREFIX: where upstream deps (headers + libs) are installed.
+    # Set via -DYYH26_DEPS_PREFIX=... or defaults to CMAKE_PREFIX_PATH.
+    if(NOT YYH26_DEPS_PREFIX)
+        set(YYH26_DEPS_PREFIX "${CMAKE_PREFIX_PATH}")
+    endif()
+
+    # Find pre-built upstream libraries (installed by vendor/setup.sh)
+    find_library(LIBOTE_LIBRARY libOTe HINTS "${YYH26_DEPS_PREFIX}/lib")
+    find_library(CRYPTOTOOLS_LIBRARY cryptoTools HINTS "${YYH26_DEPS_PREFIX}/lib")
+    find_library(MIRACL_LIBRARY miracl HINTS "${YYH26_DEPS_PREFIX}/lib")
+    find_library(GAZELLE_LIBRARY gazelle HINTS "${YYH26_DEPS_PREFIX}/lib")
+    find_library(CRYPTOTOOLS_OLE_LIBRARY cryptoTools_ole HINTS "${YYH26_DEPS_PREFIX}/lib")
 
     if(NOT LIBOTE_LIBRARY OR NOT CRYPTOTOOLS_LIBRARY)
         message(FATAL_ERROR
             "YYH26 upstream libraries not found.\n"
-            "Build them first:\n"
+            "Build and install them first:\n"
             "  bash service/protocols/yyh26/vendor/setup.sh [PREFIX]\n"
-            "Then configure with: cmake .. -DMPSI_BUILD_YYH26=ON -DCMAKE_PREFIX_PATH=PREFIX")
+            "Then configure with: cmake .. -DMPSI_BUILD_YYH26=ON -DYYH26_DEPS_PREFIX=PREFIX")
     endif()
 
     # Build libOPRF from vendored source
@@ -137,13 +143,14 @@ if(MPSI_BUILD_YYH26)
     target_include_directories(yyh26_protocol PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
+    # Headers are installed to YYH26_DEPS_PREFIX/include/ by vendor/setup.sh
     target_include_directories(yyh26_protocol PRIVATE
-        ${YYH26_VENDOR_DIR}/cryptoTools
-        ${YYH26_VENDOR_DIR}/libOTe
+        ${YYH26_DEPS_PREFIX}/include/yyh26/cryptoTools
+        ${YYH26_DEPS_PREFIX}/include/yyh26/libOTe
         ${YYH26_VENDOR_DIR}/libOPRF
-        ${YYH26_VENDOR_DIR}/libOLE/src/lib
-        ${YYH26_VENDOR_DIR}/libOLE/third_party/cryptoTools
-        ${YYH26_VENDOR_DIR}/miracl/include
+        ${YYH26_DEPS_PREFIX}/include/yyh26/libOLE/src/lib
+        ${YYH26_DEPS_PREFIX}/include/yyh26/libOLE/third_party/cryptoTools
+        ${YYH26_DEPS_PREFIX}/include/yyh26/miracl/include
         ${NTL_INCLUDE_DIR}
     )
 
