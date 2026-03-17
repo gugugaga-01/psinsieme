@@ -2,6 +2,8 @@
 
 gRPC-based multi-party PSI service with mTLS, threshold key distribution, and a Python client SDK. Supports multiple protocols — each `psi_party` process can handle different protocols per-request.
 
+For standalone experiment implementations (plaintext TCP, no gRPC), see `experiments/*/README.md`. For prerequisites and project overview, see the [root README](../README.md).
+
 ## Building
 
 ```bash
@@ -185,24 +187,23 @@ The YYH26 threshold TT-MPSI protocol (NDSS 2026) uses OPPRF, OT extensions (KKRT
 
 ### Building prerequisites
 
-YYH26 links against pre-built libraries from the experiments directory. Build them first:
+YYH26 requires upstream C++ libraries (libOTe, cryptoTools, miracl, gazelle). Use the vendor setup script to build and install them:
 
 ```bash
-cd experiments/yyh26
-mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
+bash service/protocols/yyh26/vendor/setup.sh /usr/local
 ```
 
 Then build the service with YYH26 enabled:
 
 ```bash
-cd build
-cmake .. -DMPSI_BUILD_YYH26=ON
+mkdir -p build && cd build
+cmake .. -DMPSI_BUILD_YYH26=ON -DYYH26_DEPS_PREFIX=/usr/local
 make -j$(nproc)
 ```
 
-Prerequisites: Boost (system, thread), NTL, GMP, Miracl (pre-built in `thirdparty/`).
+See [service/protocols/yyh26/vendor/README.md](protocols/yyh26/vendor/README.md) for details on what gets installed and custom prefix paths.
+
+Prerequisites: Boost (system, thread), NTL, GMP, nasm, MPFR.
 
 ### Running YYH26
 
