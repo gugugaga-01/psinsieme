@@ -6,16 +6,16 @@ gRPC-based multi-party PSI service with mTLS, threshold key distribution, and a 
 
 ```bash
 mkdir -p build && cd build
-cmake ../service
+cmake ..
 make -j$(nproc)
 ```
 
-This produces two binaries: `psi_party` and `psi_dealer`.
+This produces two binaries under `build/service/`: `psi_party` and `psi_dealer`.
 
 To enable YYH26 TT-MPSI protocol support:
 
 ```bash
-cmake ../service -DMPSI_BUILD_YYH26=ON
+cmake .. -DMPSI_BUILD_YYH26=ON
 make -j$(nproc)
 ```
 
@@ -58,10 +58,10 @@ Each data owner runs one `psi_party` process. The service supports **per-request
 
 ```bash
 # KS05: 3-party with dealer (insecure, localhost)
-bash service/demos/protocols/ks05/demo.sh
+bash service/demos/ks05/demo.sh
 
 # YYH26: 3-party without dealer
-bash service/demos/protocols/yyh26/demo.sh
+bash service/demos/yyh26/demo.sh
 ```
 
 ## Usage
@@ -198,7 +198,7 @@ Then build the service with YYH26 enabled:
 
 ```bash
 cd build
-cmake ../service -DMPSI_BUILD_YYH26=ON
+cmake .. -DMPSI_BUILD_YYH26=ON
 make -j$(nproc)
 ```
 
@@ -331,14 +331,14 @@ with PsiClient("10.0.0.1:50090", tls=True,
 
 ```bash
 cd build
-ctest --output-on-failure
+ctest --output-on-failure --test-dir service
 ```
 
 For mTLS tests, generate certificates first:
 
 ```bash
 bash service/certs/gen_certs.sh 3 service/certs/test
-cd build && ctest --output-on-failure
+cd build && ctest --output-on-failure --test-dir service
 ```
 
 ## Security Notes
