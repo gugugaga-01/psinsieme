@@ -3,7 +3,7 @@
 #
 # Prerequisites:
 #   1. Build the service with YYH26 support:
-#      cd build && cmake ../service -DMPSI_BUILD_YYH26=ON && make -j$(nproc)
+#      mkdir -p build && cd build && cmake .. -DMPSI_BUILD_YYH26=ON && make -j$(nproc)
 #   2. Build the experiments binary:
 #      cd experiments/yyh26 && mkdir -p build && cd build
 #      cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
@@ -31,9 +31,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ ! -f "$BUILD_DIR/psi_party" ]]; then
+if [[ ! -f "$BUILD_DIR/service/psi_party" ]]; then
     echo "Build the project first:"
-    echo "  cd build && cmake ../service -DMPSI_BUILD_YYH26=ON && make -j\$(nproc)"
+    echo "  mkdir -p build && cd build && cmake .. -DMPSI_BUILD_YYH26=ON && make -j\$(nproc)"
     exit 1
 fi
 
@@ -75,7 +75,7 @@ for i in $(seq 0 $((NUM_PARTIES - 1))); do
     CLIENT_PORT=$((CLIENT_BASE_PORT + i))
 
     echo "=== Starting party $i (inter=$MY_ADDR, client=0.0.0.0:$CLIENT_PORT) ==="
-    "$BUILD_DIR/psi_party" \
+    "$BUILD_DIR/service/psi_party" \
         --address "$MY_ADDR" \
         --addresses "$OTHER_ADDRS" \
         --listen "0.0.0.0:${CLIENT_PORT}" \
