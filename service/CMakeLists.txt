@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
-project(mpsi_service VERSION 1.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Support both standalone and subdirectory builds
+if(NOT CMAKE_PROJECT_NAME OR CMAKE_PROJECT_NAME STREQUAL "mpsi_service")
+    project(mpsi_service VERSION 1.0 LANGUAGES CXX)
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
 
 # Find NTL and GMP
 find_library(NTL_LIBRARY ntl PATHS /usr/local/lib)
