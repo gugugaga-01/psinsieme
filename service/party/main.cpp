@@ -1,5 +1,5 @@
 #include "psi_service_impl.h"
-#include "core/config_file.h"
+#include "core/config.h"
 #include "protocols/ks05/protocol/logger.h"
 
 #include <grpcpp/grpcpp.h>

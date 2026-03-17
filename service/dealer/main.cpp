@@ -22,7 +22,7 @@
 
 #include "dealer/dealer_service.h"
 #include "core/transport/party_server.h"
-#include "core/config_file.h"
+#include "core/config.h"
 
 #include <grpcpp/grpcpp.h>
 #include <iostream>
