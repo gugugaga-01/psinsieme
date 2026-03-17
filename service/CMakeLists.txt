@@ -106,20 +106,29 @@ add_library(ks05_plugin OBJECT
 target_include_directories(ks05_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ks05_plugin PRIVATE ks05_protocol ks05_crypto mpsi_core mpsi_proto)
 
-# yyh26 TT-MPSI protocol (optional, requires experiments libraries)
+# yyh26 TT-MPSI protocol (optional, requires upstream libraries)
 option(MPSI_BUILD_YYH26 "Build YYH26 TT-MPSI protocol support" OFF)
 
 if(MPSI_BUILD_YYH26)
-    set(YYH26_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../experiments/yyh26")
+    set(YYH26_VENDOR_DIR "${CMAKE_CURRENT_SOURCE_DIR}/protocols/yyh26/vendor")
 
-    # Verify experiments libraries exist (upstream submodule must be built)
-    if(NOT EXISTS "${YYH26_ROOT}/upstream/lib/liblibOTe.a")
+    # Find pre-built upstream libraries (installed by vendor/setup.sh or found via CMAKE_PREFIX_PATH)
+    find_library(LIBOTE_LIBRARY libOTe HINTS "${CMAKE_PREFIX_PATH}/lib")
+    find_library(CRYPTOTOOLS_LIBRARY cryptoTools HINTS "${CMAKE_PREFIX_PATH}/lib")
+    find_library(MIRACL_LIBRARY miracl HINTS "${CMAKE_PREFIX_PATH}/lib")
+    find_library(GAZELLE_LIBRARY gazelle HINTS "${CMAKE_PREFIX_PATH}/lib")
+    find_library(CRYPTOTOOLS_OLE_LIBRARY cryptoTools_ole HINTS "${CMAKE_PREFIX_PATH}/lib")
+
+    if(NOT LIBOTE_LIBRARY OR NOT CRYPTOTOOLS_LIBRARY)
         message(FATAL_ERROR
-            "YYH26 experiments libraries not found at ${YYH26_ROOT}/upstream/lib/\n"
-            "Build experiments first:\n"
-            "  cd experiments/yyh26 && bash setup.sh\n"
-            "  mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)")
+            "YYH26 upstream libraries not found.\n"
+            "Build them first:\n"
+            "  bash service/protocols/yyh26/vendor/setup.sh [PREFIX]\n"
+            "Then configure with: cmake .. -DMPSI_BUILD_YYH26=ON -DCMAKE_PREFIX_PATH=PREFIX")
     endif()
+
+    # Build libOPRF from vendored source
+    add_subdirectory(protocols/yyh26/vendor/libOPRF)
 
     add_library(yyh26_protocol
         protocols/yyh26/protocol/tt_mpsi.cpp
@@ -129,26 +138,31 @@ if(MPSI_BUILD_YYH26)
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
     target_include_directories(yyh26_protocol PRIVATE
-        ${YYH26_ROOT}/upstream/cryptoTools
-        ${YYH26_ROOT}/upstream/libOTe
-        ${YYH26_ROOT}/libOPRF
-        ${YYH26_ROOT}/libOLE/src/lib
-        ${YYH26_ROOT}/libOLE/third_party/cryptoTools
-        ${YYH26_ROOT}/upstream/thirdparty/linux/miracl/miracl/include
-        ${YYH26_ROOT}/frontend
+        ${YYH26_VENDOR_DIR}/cryptoTools
+        ${YYH26_VENDOR_DIR}/libOTe
+        ${YYH26_VENDOR_DIR}/libOPRF
+        ${YYH26_VENDOR_DIR}/libOLE/src/lib
+        ${YYH26_VENDOR_DIR}/libOLE/third_party/cryptoTools
+        ${YYH26_VENDOR_DIR}/miracl/include
         ${NTL_INCLUDE_DIR}
     )
 
     target_link_libraries(yyh26_protocol PRIVATE
-        ${YYH26_ROOT}/lib/liblibOPRF.a
-        ${YYH26_ROOT}/upstream/lib/liblibOTe.a
-        ${YYH26_ROOT}/upstream/lib/libcryptoTools.a
-        ${YYH26_ROOT}/libOLE/bin/lib/libgazelle.so
-        ${YYH26_ROOT}/libOLE/third_party/cryptoTools/lib/libcryptoTools.a
-        ${YYH26_ROOT}/upstream/thirdparty/linux/miracl/miracl/source/libmiracl.a
+        libOPRF
+        ${LIBOTE_LIBRARY}
+        ${CRYPTOTOOLS_LIBRARY}
         ${NTL_LIBRARY} ${GMP_LIBRARY}
         boost_system boost_thread pthread
     )
+    if(GAZELLE_LIBRARY)
+        target_link_libraries(yyh26_protocol PRIVATE ${GAZELLE_LIBRARY})
+    endif()
+    if(CRYPTOTOOLS_OLE_LIBRARY)
+        target_link_libraries(yyh26_protocol PRIVATE ${CRYPTOTOOLS_OLE_LIBRARY})
+    endif()
+    if(MIRACL_LIBRARY)
+        target_link_libraries(yyh26_protocol PRIVATE ${MIRACL_LIBRARY})
+    endif()
 
     target_compile_definitions(yyh26_protocol PUBLIC MPSI_HAS_YYH26=1)
     target_compile_options(yyh26_protocol PRIVATE -maes -msse2 -msse4.1 -mpclmul)
