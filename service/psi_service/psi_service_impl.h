@@ -4,11 +4,11 @@
 #include "dealer.grpc.pb.h"
 #include "core/transport/party_server.h"
 #include "core/transport/grpc_channel.h"
-#include "ks05_t_mpsi/protocol/t_mpsi.h"
-#include "ks05_t_mpsi/protocol/logger.h"
+#include "protocols/ks05/protocol/t_mpsi.h"
+#include "protocols/ks05/protocol/logger.h"
 
 #ifdef MPSI_HAS_YYH26
-#include "yyh26_tt_mpsi/protocol/tt_mpsi.h"
+#include "protocols/yyh26/protocol/tt_mpsi.h"
 #endif
 
 #include <grpcpp/grpcpp.h>

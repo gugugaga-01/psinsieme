@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include "yyh26_tt_mpsi/protocol/tt_mpsi.h"
-#include "yyh26_tt_mpsi/protocol/shamir_ss.h"
-#include "yyh26_tt_mpsi/protocol/crt_utils.h"
+#include "protocols/yyh26/protocol/tt_mpsi.h"
+#include "protocols/yyh26/protocol/shamir_ss.h"
+#include "protocols/yyh26/protocol/crt_utils.h"
 
 #include <cstring>
 #include <string>

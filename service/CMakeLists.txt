@@ -82,8 +82,8 @@ target_link_libraries(mpsi_core INTERFACE mpsi_proto)
 
 # ks05 crypto library
 add_library(ks05_crypto
-    ks05_t_mpsi/crypto/paillier.cpp
-    ks05_t_mpsi/crypto/polynomial.cpp
+    protocols/ks05/crypto/paillier.cpp
+    protocols/ks05/crypto/polynomial.cpp
 )
 target_include_directories(ks05_crypto PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -93,7 +93,7 @@ target_link_libraries(ks05_crypto PUBLIC ${NTL_LIBRARY} ${GMP_LIBRARY})
 
 # ks05 protocol library
 add_library(ks05_protocol
-    ks05_t_mpsi/protocol/t_mpsi.cpp
+    protocols/ks05/protocol/t_mpsi.cpp
 )
 target_include_directories(ks05_protocol PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ks05_protocol PUBLIC ks05_crypto mpsi_core)
@@ -115,7 +115,7 @@ if(MPSI_BUILD_YYH26)
     endif()
 
     add_library(yyh26_protocol
-        yyh26_tt_mpsi/protocol/tt_mpsi.cpp
+        protocols/yyh26/protocol/tt_mpsi.cpp
     )
 
     target_include_directories(yyh26_protocol PUBLIC
