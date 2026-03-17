@@ -1,42 +1,37 @@
-# Threshold-MPSI Implementation (beh21)
+# Threshold-MPSI Implementation (BEH21)
 
-## Overview
+Research implementation of threshold multi-party private set intersection (T-MPSI) with Bloom filter optimizations.
 
-This is a research implementation of threshold multi-party private set intersection (T-MPSI) with Bloom filter optimizations.
+## Prerequisites
 
-**Research Purpose**: For experimental and benchmarking purposes only.
+See the [root README](../../README.md#prerequisites) for the full dependency list (Core + Experiments).
 
-## Getting Started
+## Building
 
-### 1. Install Dependencies
-
-Required libraries:
-- **cryptoTools** - Cryptographic primitives
-- **coproto** - C++20 coroutine protocol framework
-- **boost** - System and ASIO libraries
-- **NTL** - Number Theory Library
-- **GMP** - GNU Multiple Precision library
-- **libvolePSI** - (headers only, for type definitions)
-- **libOTe** - (headers only, for type definitions)
-
-Build tools:
-- C++20 compatible compiler (GCC 10+ or Clang 15+)
-- CMake 3.16+
-
-### 2. Build the Project
+### From the repository root (recommended)
 
 ```bash
-# From the experiments/ directory
+mkdir -p build && cd build
+cmake .. -DBUILD_EXPERIMENTS=ON -DBUILD_BEH21=ON
+make -j$(nproc)
+```
+
+Binary: `build/experiments/beh21/beh21_ot_mpsi`
+
+### Standalone from experiments/
+
+```bash
+cd experiments
 mkdir -p build && cd build
 cmake .. -DBUILD_BEH21=ON -DBUILD_KS05=OFF
 make -j$(nproc)
-
-# Binary will be at: build/beh21/beh21_ot_mpsi
 ```
 
-### 3. Run the Protocol
+Binary: `build/beh21/beh21_ot_mpsi`
 
-#### Command-Line Parameters
+## Running
+
+### Parameters
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
@@ -50,51 +45,41 @@ make -j$(nproc)
 | `-numRuns` | Number of benchmark runs | 1 |
 | `-debug` | Enable debug logging | false |
 
-#### Separate Terminal Usage
-
-**Example: 3 parties with threshold 2**
+### Example: 3 parties, threshold 2
 
 Start the leader **first** (it acts as the server):
 
-**Terminal 1 - Leader (Party 2)**:
+**Terminal 1 — Leader (Party 2)**:
 ```bash
-./bin/t_mpsi -partyID 2 -numParties 3 -threshold 2 \
-  -senderSize 1000 -receiverSize 1000 -debug
+./beh21_ot_mpsi -partyID 2 -numParties 3 -threshold 2 -senderSize 1000 -receiverSize 1000 -debug
 ```
 
-**Terminal 2 - Member 0**:
+**Terminal 2 — Member 0**:
 ```bash
-./bin/t_mpsi -partyID 0 -numParties 3 -threshold 2 \
-  -senderSize 1000 -receiverSize 1000 -debug
+./beh21_ot_mpsi -partyID 0 -numParties 3 -threshold 2 -senderSize 1000 -receiverSize 1000 -debug
 ```
 
-**Terminal 3 - Member 1**:
+**Terminal 3 — Member 1**:
 ```bash
-./bin/t_mpsi -partyID 1 -numParties 3 -threshold 2 \
-  -senderSize 1000 -receiverSize 1000 -debug
+./beh21_ot_mpsi -partyID 1 -numParties 3 -threshold 2 -senderSize 1000 -receiverSize 1000 -debug
 ```
 
-The leader will print:
-- Intersection size found
-- Average time (if multiple runs)
-- Communication costs (sent/received MB)
+The leader prints the intersection size, average time, and communication costs.
 
-## Automated Benchmarking
+## Benchmarking
 
-Two Python scripts are provided for automated benchmarking:
-
-Benchmark scripts are in `experiments/tools/` (shared across protocols):
+Scripts are in `experiments/tools/` (shared across protocols):
 
 ```bash
 # Single benchmark
 python3 ../tools/run_benchmark.py --protocol beh21 \
   --numParties 4 --threshold 3 --senderSize 10 --receiverSize 10
 
-# Grid benchmarks
+# Grid benchmarks (multiple set sizes)
 python3 ../tools/run_multiple_benchmarks.py --protocol beh21 \
   --numParties 5 --threshold 3 --sizes 4 6 8
 ```
 
 ---
 
-**Disclaimer**: This is research code for experimental purposes. Not production-ready.
+**Disclaimer**: Research code for experimental purposes.

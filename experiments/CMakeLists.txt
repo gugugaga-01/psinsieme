@@ -7,8 +7,7 @@ find_library(GMP_LIBRARY gmp)
 find_path(NTL_INCLUDE_DIR NTL/ZZ.h PATHS /usr/local/include)
 
 if(NOT NTL_LIBRARY OR NOT GMP_LIBRARY)
-    message(FATAL_ERROR "NTL and GMP are required.\n"
-                        "Install with: sudo apt install libntl-dev libgmp-dev")
+    message(FATAL_ERROR "NTL and GMP libraries are required. Install with: sudo apt install libntl-dev libgmp-dev")
 endif()
 
 # Common dependencies
