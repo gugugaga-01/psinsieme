@@ -149,7 +149,7 @@ endif()
 
 # psi_party binary (client-facing PsiService + inter-party protocol)
 add_executable(psi_party
-    psi_service/main.cpp
+    party/main.cpp
 )
 target_include_directories(psi_party PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(psi_party PRIVATE ks05_protocol ks05_crypto mpsi_core mpsi_proto pthread)
