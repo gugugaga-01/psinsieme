@@ -18,8 +18,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVICE_ROOT="$SCRIPT_DIR/../.."
 PROJECT_ROOT="$SERVICE_ROOT/.."
 BUILD_DIR="$PROJECT_ROOT/build"
-PSI_PARTY="$BUILD_DIR/psi_party"
-PSI_DEALER="$BUILD_DIR/psi_dealer"
+PSI_PARTY="$BUILD_DIR/service/psi_party"
+PSI_DEALER="$BUILD_DIR/service/psi_dealer"
 PYTHON_CLIENT="$SERVICE_ROOT/clients/python"
 
 NUM_PARTIES=3
@@ -62,13 +62,13 @@ fi
 # Check prerequisites
 if [ ! -f "$PSI_PARTY" ]; then
     echo "ERROR: psi_party binary not found. Build first:"
-    echo "  cd build && cmake ../service && make -j\$(nproc)"
+    echo "  mkdir -p build && cd build && cmake .. && make -j\$(nproc)"
     exit 1
 fi
 
 if [ ! -f "$PSI_DEALER" ]; then
     echo "ERROR: psi_dealer binary not found. Build first:"
-    echo "  cd build && cmake ../service && make -j\$(nproc)"
+    echo "  mkdir -p build && cd build && cmake .. && make -j\$(nproc)"
     exit 1
 fi
 
