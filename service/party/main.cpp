@@ -1,6 +1,6 @@
 #include "psi_service_impl.h"
 #include "core/config.h"
-#include "protocols/ks05/protocol/logger.h"
+#include "core/tls/tls_config.h"
 
 #include <grpcpp/grpcpp.h>
 #include <algorithm>
@@ -97,10 +97,6 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Dealer is optional. If provided, Paillier keys are fetched at startup,
-    // enabling KS05 requests. Without a dealer, only protocols that don't
-    // require Paillier keys (e.g. yyh26_tt_mpsi) are available.
-
     // Parse other parties' addresses and merge with our own
     {
         std::istringstream ss(addresses_csv);
@@ -136,40 +132,9 @@ int main(int argc, char** argv) {
         config.client_tls = config.inter_party_tls;
     }
 
-    mpsi::ks05::Logger::getInstance().setEnabled(true);
-
-    // Start client-facing PsiService
+    // Create PsiService — protocol plugins are set up automatically
+    // (KS05 fetches dealer keys, YYH26 is a no-op, etc.)
     mpsi::PsiServiceImpl psi_service(config);
-
-    // Fetch keys from dealer if --dealer is provided (enables KS05 protocol)
-    if (!config.dealer_addr.empty()) {
-        mpsi::TlsConfig dealer_tls;
-        if (config.inter_party_tls.enable_mtls) {
-            dealer_tls = config.inter_party_tls;
-        }
-
-        mpsi::ks05::PubKey pk;
-        mpsi::ks05::PrivKey sk;
-        std::cerr << "[Party " << config.party_id
-                  << "] Connecting to dealer at " << config.dealer_addr
-                  << (dealer_tls.enable_mtls ? " (mTLS)" : " (insecure)")
-                  << "..." << std::endl;
-
-        if (!mpsi::fetchKeyShareFromDealer(
-                config.dealer_addr, config.party_id, config.num_parties,
-                pk, sk, dealer_tls)) {
-            std::cerr << "[Party " << config.party_id
-                      << "] Failed to get key share from dealer" << std::endl;
-            return 1;
-        }
-
-        psi_service.setKeys(pk, sk);
-    } else {
-        std::cerr << "[Party " << config.party_id
-                  << "] No dealer configured. KS05 protocol unavailable; "
-                  << "other protocols (e.g. yyh26_tt_mpsi) can still be used."
-                  << std::endl;
-    }
 
     auto creds = mpsi::makeServerCredentials(config.client_tls);
 

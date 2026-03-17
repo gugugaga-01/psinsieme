@@ -99,6 +99,13 @@ target_include_directories(ks05_protocol PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ks05_protocol PUBLIC ks05_crypto mpsi_core)
 target_link_libraries(ks05_protocol PRIVATE pthread)
 
+# ks05 plugin (OBJECT library ensures static initializer is not dead-stripped)
+add_library(ks05_plugin OBJECT
+    protocols/ks05/ks05_plugin.cpp
+)
+target_include_directories(ks05_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(ks05_plugin PRIVATE ks05_protocol ks05_crypto mpsi_core mpsi_proto)
+
 # yyh26 TT-MPSI protocol (optional, requires experiments libraries)
 option(MPSI_BUILD_YYH26 "Build YYH26 TT-MPSI protocol support" OFF)
 
@@ -145,18 +152,26 @@ if(MPSI_BUILD_YYH26)
 
     target_compile_definitions(yyh26_protocol PUBLIC MPSI_HAS_YYH26=1)
     target_compile_options(yyh26_protocol PRIVATE -maes -msse2 -msse4.1 -mpclmul)
+
+    # yyh26 plugin (OBJECT library ensures static initializer is not dead-stripped)
+    add_library(yyh26_plugin OBJECT
+        protocols/yyh26/yyh26_plugin.cpp
+    )
+    target_include_directories(yyh26_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(yyh26_plugin PRIVATE yyh26_protocol mpsi_core)
 endif()
 
 # psi_party binary (client-facing PsiService + inter-party protocol)
 add_executable(psi_party
     party/main.cpp
+    $<TARGET_OBJECTS:ks05_plugin>
 )
 target_include_directories(psi_party PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(psi_party PRIVATE ks05_protocol ks05_crypto mpsi_core mpsi_proto pthread)
 
 if(MPSI_BUILD_YYH26)
+    target_sources(psi_party PRIVATE $<TARGET_OBJECTS:yyh26_plugin>)
     target_link_libraries(psi_party PRIVATE yyh26_protocol)
-    target_compile_definitions(psi_party PRIVATE MPSI_HAS_YYH26=1)
 endif()
 
 # psi_dealer binary (trusted key dealer service)
