@@ -1,8 +1,8 @@
 #pragma once
 
 #include "dealer.grpc.pb.h"
-#include "ks05_t_mpsi/crypto/paillier.h"
-#include "ks05_t_mpsi/protocol/t_mpsi.h"
+#include "protocols/ks05/crypto/paillier.h"
+#include "protocols/ks05/protocol/t_mpsi.h"
 
 #include <grpcpp/grpcpp.h>
 #include <mutex>

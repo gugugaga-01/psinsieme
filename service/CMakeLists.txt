@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
-project(mpsi_service VERSION 1.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Support both standalone and subdirectory builds
+if(NOT CMAKE_PROJECT_NAME OR CMAKE_PROJECT_NAME STREQUAL "mpsi_service")
+    project(mpsi_service VERSION 1.0 LANGUAGES CXX)
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
 
 # Find NTL and GMP
 find_library(NTL_LIBRARY ntl PATHS /usr/local/lib)
@@ -79,8 +82,8 @@ target_link_libraries(mpsi_core INTERFACE mpsi_proto)
 
 # ks05 crypto library
 add_library(ks05_crypto
-    ks05_t_mpsi/crypto/paillier.cpp
-    ks05_t_mpsi/crypto/polynomial.cpp
+    protocols/ks05/crypto/paillier.cpp
+    protocols/ks05/crypto/polynomial.cpp
 )
 target_include_directories(ks05_crypto PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -90,70 +93,106 @@ target_link_libraries(ks05_crypto PUBLIC ${NTL_LIBRARY} ${GMP_LIBRARY})
 
 # ks05 protocol library
 add_library(ks05_protocol
-    ks05_t_mpsi/protocol/t_mpsi.cpp
+    protocols/ks05/protocol/t_mpsi.cpp
 )
 target_include_directories(ks05_protocol PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ks05_protocol PUBLIC ks05_crypto mpsi_core)
 target_link_libraries(ks05_protocol PRIVATE pthread)
 
-# yyh26 TT-MPSI protocol (optional, requires experiments libraries)
+# ks05 plugin (OBJECT library ensures static initializer is not dead-stripped)
+add_library(ks05_plugin OBJECT
+    protocols/ks05/ks05_plugin.cpp
+)
+target_include_directories(ks05_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(ks05_plugin PRIVATE ks05_protocol ks05_crypto mpsi_core mpsi_proto)
+
+# yyh26 TT-MPSI protocol (optional, requires upstream libraries)
 option(MPSI_BUILD_YYH26 "Build YYH26 TT-MPSI protocol support" OFF)
 
 if(MPSI_BUILD_YYH26)
-    set(YYH26_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../experiments/yyh26")
+    set(YYH26_VENDOR_DIR "${CMAKE_CURRENT_SOURCE_DIR}/protocols/yyh26/vendor")
 
-    # Verify experiments libraries exist (upstream submodule must be built)
-    if(NOT EXISTS "${YYH26_ROOT}/upstream/lib/liblibOTe.a")
-        message(FATAL_ERROR
-            "YYH26 experiments libraries not found at ${YYH26_ROOT}/upstream/lib/\n"
-            "Build experiments first:\n"
-            "  cd experiments/yyh26 && bash setup.sh\n"
-            "  mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)")
+    # YYH26_DEPS_PREFIX: where upstream deps (headers + libs) are installed.
+    # Set via -DYYH26_DEPS_PREFIX=... or defaults to CMAKE_PREFIX_PATH.
+    if(NOT YYH26_DEPS_PREFIX)
+        set(YYH26_DEPS_PREFIX "${CMAKE_PREFIX_PATH}")
     endif()
 
+    # Find pre-built upstream libraries (installed by vendor/setup.sh)
+    find_library(LIBOTE_LIBRARY libOTe HINTS "${YYH26_DEPS_PREFIX}/lib")
+    find_library(CRYPTOTOOLS_LIBRARY cryptoTools HINTS "${YYH26_DEPS_PREFIX}/lib")
+    find_library(MIRACL_LIBRARY miracl HINTS "${YYH26_DEPS_PREFIX}/lib")
+    find_library(GAZELLE_LIBRARY gazelle HINTS "${YYH26_DEPS_PREFIX}/lib")
+    find_library(CRYPTOTOOLS_OLE_LIBRARY cryptoTools_ole HINTS "${YYH26_DEPS_PREFIX}/lib")
+
+    if(NOT LIBOTE_LIBRARY OR NOT CRYPTOTOOLS_LIBRARY)
+        message(FATAL_ERROR
+            "YYH26 upstream libraries not found.\n"
+            "Build and install them first:\n"
+            "  bash service/protocols/yyh26/vendor/setup.sh [PREFIX]\n"
+            "Then configure with: cmake .. -DMPSI_BUILD_YYH26=ON -DYYH26_DEPS_PREFIX=PREFIX")
+    endif()
+
+    # Build libOPRF from vendored source
+    add_subdirectory(protocols/yyh26/vendor/libOPRF)
+
     add_library(yyh26_protocol
-        yyh26_tt_mpsi/protocol/tt_mpsi.cpp
+        protocols/yyh26/protocol/tt_mpsi.cpp
     )
 
     target_include_directories(yyh26_protocol PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
+    # Headers are installed to YYH26_DEPS_PREFIX/include/ by vendor/setup.sh
     target_include_directories(yyh26_protocol PRIVATE
-        ${YYH26_ROOT}/upstream/cryptoTools
-        ${YYH26_ROOT}/upstream/libOTe
-        ${YYH26_ROOT}/libOPRF
-        ${YYH26_ROOT}/libOLE/src/lib
-        ${YYH26_ROOT}/libOLE/third_party/cryptoTools
-        ${YYH26_ROOT}/upstream/thirdparty/linux/miracl/miracl/include
-        ${YYH26_ROOT}/frontend
+        ${YYH26_DEPS_PREFIX}/include/yyh26/cryptoTools
+        ${YYH26_DEPS_PREFIX}/include/yyh26/libOTe
+        ${YYH26_VENDOR_DIR}/libOPRF
+        ${YYH26_DEPS_PREFIX}/include/yyh26/libOLE/src/lib
+        ${YYH26_DEPS_PREFIX}/include/yyh26/libOLE/third_party/cryptoTools
+        ${YYH26_DEPS_PREFIX}/include/yyh26/miracl/include
         ${NTL_INCLUDE_DIR}
     )
 
     target_link_libraries(yyh26_protocol PRIVATE
-        ${YYH26_ROOT}/lib/liblibOPRF.a
-        ${YYH26_ROOT}/upstream/lib/liblibOTe.a
-        ${YYH26_ROOT}/upstream/lib/libcryptoTools.a
-        ${YYH26_ROOT}/libOLE/bin/lib/libgazelle.so
-        ${YYH26_ROOT}/libOLE/third_party/cryptoTools/lib/libcryptoTools.a
-        ${YYH26_ROOT}/upstream/thirdparty/linux/miracl/miracl/source/libmiracl.a
+        libOPRF
+        ${LIBOTE_LIBRARY}
+        ${CRYPTOTOOLS_LIBRARY}
         ${NTL_LIBRARY} ${GMP_LIBRARY}
         boost_system boost_thread pthread
     )
+    if(GAZELLE_LIBRARY)
+        target_link_libraries(yyh26_protocol PRIVATE ${GAZELLE_LIBRARY})
+    endif()
+    if(CRYPTOTOOLS_OLE_LIBRARY)
+        target_link_libraries(yyh26_protocol PRIVATE ${CRYPTOTOOLS_OLE_LIBRARY})
+    endif()
+    if(MIRACL_LIBRARY)
+        target_link_libraries(yyh26_protocol PRIVATE ${MIRACL_LIBRARY})
+    endif()
 
     target_compile_definitions(yyh26_protocol PUBLIC MPSI_HAS_YYH26=1)
     target_compile_options(yyh26_protocol PRIVATE -maes -msse2 -msse4.1 -mpclmul)
+
+    # yyh26 plugin (OBJECT library ensures static initializer is not dead-stripped)
+    add_library(yyh26_plugin OBJECT
+        protocols/yyh26/yyh26_plugin.cpp
+    )
+    target_include_directories(yyh26_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(yyh26_plugin PRIVATE yyh26_protocol mpsi_core)
 endif()
 
 # psi_party binary (client-facing PsiService + inter-party protocol)
 add_executable(psi_party
-    psi_service/main.cpp
+    party/main.cpp
+    $<TARGET_OBJECTS:ks05_plugin>
 )
 target_include_directories(psi_party PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(psi_party PRIVATE ks05_protocol ks05_crypto mpsi_core mpsi_proto pthread)
 
 if(MPSI_BUILD_YYH26)
+    target_sources(psi_party PRIVATE $<TARGET_OBJECTS:yyh26_plugin>)
     target_link_libraries(psi_party PRIVATE yyh26_protocol)
-    target_compile_definitions(psi_party PRIVATE MPSI_HAS_YYH26=1)
 endif()
 
 # psi_dealer binary (trusted key dealer service)
