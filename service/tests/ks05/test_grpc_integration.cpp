@@ -10,9 +10,9 @@
 
 #include "core/transport/grpc_channel.h"
 #include "core/transport/party_server.h"
-#include "ks05_t_mpsi/protocol/t_mpsi.h"
-#include "ks05_t_mpsi/crypto/paillier.h"
-#include "ks05_t_mpsi/protocol/logger.h"
+#include "protocols/ks05/protocol/t_mpsi.h"
+#include "protocols/ks05/crypto/paillier.h"
+#include "protocols/ks05/protocol/logger.h"
 
 using namespace mpsi::ks05;
 

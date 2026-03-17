@@ -5,7 +5,7 @@
 #include <functional>
 #include "../crypto/defines.h"
 #include "../crypto/paillier.h"
-#include "../../core/transport/channel.h"
+#include "core/transport/channel.h"
 
 namespace mpsi::ks05 {
 

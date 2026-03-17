@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "ks05_t_mpsi/protocol/logger.h"
+#include "protocols/ks05/protocol/logger.h"
 
 using namespace mpsi::ks05;
 

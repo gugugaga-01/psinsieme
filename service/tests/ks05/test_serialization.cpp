@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "ks05_t_mpsi/protocol/t_mpsi.h"
-#include "ks05_t_mpsi/crypto/paillier.h"
+#include "protocols/ks05/protocol/t_mpsi.h"
+#include "protocols/ks05/crypto/paillier.h"
 
 using namespace mpsi::ks05;
 

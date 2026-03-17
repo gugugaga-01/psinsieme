@@ -58,10 +58,10 @@ Each data owner runs one `psi_party` process. The service supports **per-request
 
 ```bash
 # KS05: 3-party with dealer (insecure, localhost)
-bash service/demos/ks05_t_mpsi/demo.sh
+bash service/demos/protocols/ks05/demo.sh
 
 # YYH26: 3-party without dealer
-bash service/demos/yyh26_tt_mpsi/demo.sh
+bash service/demos/protocols/yyh26/demo.sh
 ```
 
 ## Usage
