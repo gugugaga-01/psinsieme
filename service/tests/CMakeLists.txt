@@ -65,6 +65,39 @@ add_test(NAME ks05_grpc COMMAND test_ks05_grpc)
 add_test(NAME ks05_grpc_tls COMMAND test_ks05_grpc --tls
     --certs-dir "${CMAKE_CURRENT_SOURCE_DIR}/../certs/test")
 
+# === BEH21 OT-MPSI Tests ===
+if(MPSI_BUILD_BEH21)
+    # Bloom filter unit tests
+    add_executable(test_beh21_bloom_filter protocols/beh21/test_bloom_filter.cpp)
+    target_include_directories(test_beh21_bloom_filter PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+    )
+    target_link_libraries(test_beh21_bloom_filter PRIVATE
+        beh21_crypto GTest::gtest_main)
+    gtest_discover_tests(test_beh21_bloom_filter)
+
+    # Signed plaintext helper unit tests
+    add_executable(test_beh21_signed_plaintext protocols/beh21/test_signed_plaintext.cpp)
+    target_include_directories(test_beh21_signed_plaintext PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+        ${NTL_INCLUDE_DIR}
+    )
+    target_link_libraries(test_beh21_signed_plaintext PRIVATE
+        beh21_protocol ks05_crypto ${NTL_LIBRARY} ${GMP_LIBRARY} GTest::gtest_main)
+    gtest_discover_tests(test_beh21_signed_plaintext)
+
+    # In-process integration test (no gRPC)
+    add_executable(test_beh21_integration protocols/beh21/test_beh21_integration.cpp)
+    target_include_directories(test_beh21_integration PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+        ${NTL_INCLUDE_DIR}
+    )
+    target_link_libraries(test_beh21_integration PRIVATE
+        beh21_protocol beh21_crypto ks05_crypto mpsi_core
+        ${NTL_LIBRARY} ${GMP_LIBRARY})
+    add_test(NAME beh21_integration COMMAND test_beh21_integration)
+endif()
+
 # === YYH26 TT-MPSI Tests ===
 if(MPSI_BUILD_YYH26)
     add_executable(test_yyh26_tt_mpsi protocols/yyh26/test_tt_mpsi.cpp)
