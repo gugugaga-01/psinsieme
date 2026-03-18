@@ -15,6 +15,36 @@ The repository has two layers:
 - **`experiments/`** — Standalone academic reference implementations that communicate over plaintext TCP. Useful for benchmarking and understanding each protocol in isolation.
 - **`service/`** — A gRPC-based production framework with mTLS, threshold key distribution, per-request protocol selection, and a Python client SDK. See [service/README.md](service/README.md) for the full usage guide.
 
+## Architecture
+
+```mermaid
+graph TB
+    subgraph Service Layer
+        D[Dealer<br><i>psi_dealer</i>]
+        P1[Party 1<br><i>psi_party</i>]
+        P2[Party 2<br><i>psi_party</i>]
+        P3[Party 3<br><i>psi_party</i>]
+    end
+
+    subgraph Clients
+        C1[Client 1<br><i>Python SDK</i>]
+        C2[Client 2<br><i>Python SDK</i>]
+        C3[Client 3<br><i>Python SDK</i>]
+    end
+
+    D -- "key shares<br>(Paillier)" --> P1
+    D -- "key shares" --> P2
+    D -- "key shares" --> P3
+
+    C1 -- "gRPC<br>(mTLS)" --> P1
+    C2 -- "gRPC" --> P2
+    C3 -- "gRPC" --> P3
+
+    P1 -- "star + ring<br>topology" --> P2
+    P2 --> P3
+    P3 --> P1
+```
+
 ## Prerequisites
 
 ### Core (service)
