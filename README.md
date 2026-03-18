@@ -7,7 +7,7 @@ Experimental implementations of multi-party Private Set Intersection (PSI) proto
 | Protocol | Reference | Experiment | Service |
 |----------|-----------|------------|---------|
 | KS05 Threshold MPSI | Kissner & Song, CRYPTO 2005 [[doi]](https://doi.org/10.1007/11535218_15) | [experiments/ks05](experiments/ks05/) | [service](service/) |
-| BEH21 Threshold MPSI | Bay et al., IEEE TIFS 2021 [[doi]](https://doi.org/10.1109/TIFS.2021.3118879) | [experiments/beh21](experiments/beh21/) | — |
+| BEH21 Threshold MPSI | Bay et al., IEEE TIFS 2021 [[doi]](https://doi.org/10.1109/TIFS.2021.3118879) | [experiments/beh21](experiments/beh21/) | [service](service/) |
 | YYH26 T-Threshold MPSI | TBD, NDSS 2026 | [experiments/yyh26](experiments/yyh26/) | [service](service/) |
 
 The repository has two layers:
@@ -71,6 +71,7 @@ Run the demo:
 
 ```bash
 bash service/demos/ks05/demo.sh      # 3-party KS05 with dealer
+bash service/demos/beh21/demo.sh     # 3-party BEH21 with dealer (requires -DMPSI_BUILD_BEH21=ON)
 bash service/demos/yyh26/demo.sh     # 3-party YYH26 without dealer
 ```
 
