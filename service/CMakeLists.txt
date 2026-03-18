@@ -195,6 +195,32 @@ if(MPSI_BUILD_YYH26)
     target_link_libraries(psi_party PRIVATE yyh26_protocol)
 endif()
 
+# BEH21 OT-MPSI protocol (optional, uses Paillier from ks05_crypto + Bloom filters)
+option(MPSI_BUILD_BEH21 "Build BEH21 OT-MPSI protocol support" OFF)
+
+if(MPSI_BUILD_BEH21)
+    add_library(beh21_crypto
+        protocols/beh21/third_party/smhasher/MurmurHash3.cpp
+    )
+    target_include_directories(beh21_crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+    add_library(beh21_protocol
+        protocols/beh21/protocol/ot_mpsi.cpp
+    )
+    target_include_directories(beh21_protocol PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(beh21_protocol PUBLIC ks05_crypto beh21_crypto mpsi_core)
+    target_link_libraries(beh21_protocol PRIVATE pthread)
+
+    add_library(beh21_plugin OBJECT
+        protocols/beh21/beh21_plugin.cpp
+    )
+    target_include_directories(beh21_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(beh21_plugin PRIVATE beh21_protocol ks05_crypto mpsi_core mpsi_proto)
+
+    target_sources(psi_party PRIVATE $<TARGET_OBJECTS:beh21_plugin>)
+    target_link_libraries(psi_party PRIVATE beh21_protocol beh21_crypto)
+endif()
+
 # psi_dealer binary (trusted key dealer service)
 add_executable(psi_dealer
     dealer/main.cpp
