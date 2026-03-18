@@ -21,6 +21,13 @@ cmake .. -DMPSI_BUILD_YYH26=ON
 make -j$(nproc)
 ```
 
+To enable BEH21 OT-MPSI protocol support:
+
+```bash
+cmake .. -DMPSI_BUILD_BEH21=ON
+make -j$(nproc)
+```
+
 Prerequisites: gRPC, protobuf, NTL, GMP.
 
 ## Supported Protocols
@@ -28,6 +35,7 @@ Prerequisites: gRPC, protobuf, NTL, GMP.
 | Protocol | Reference | Crypto Primitives | Dealer | Internal Transport |
 |----------|-----------|-------------------|--------|--------------------|
 | `ks05_t_mpsi` | Kissner & Song, CRYPTO 2005 | Paillier threshold encryption (3072-bit) | Required (trusted dealer) | gRPC (mTLS optional) |
+| `beh21_ot_mpsi` | Bay et al., IEEE TIFS 2021 | Paillier threshold encryption + Bloom filters + SCP | Required (trusted dealer) | gRPC (mTLS optional) |
 | `yyh26_tt_mpsi` | Yanai et al., NDSS 2026 | OPPRF + KKRT OT + BFV BOLE + Shamir SS | Not needed | Unencrypted TCP (BtEndpoint)* |
 
 Both protocols operate under the **semi-honest** (honest-but-curious) threat model.
@@ -61,6 +69,9 @@ Each data owner runs one `psi_party` process. The service supports **per-request
 ```bash
 # KS05: 3-party with dealer (insecure, localhost)
 bash service/demos/ks05/demo.sh
+
+# BEH21: 3-party with dealer (requires -DMPSI_BUILD_BEH21=ON)
+bash service/demos/beh21/demo.sh
 
 # YYH26: 3-party without dealer
 bash service/demos/yyh26/demo.sh
@@ -325,7 +336,7 @@ with PsiClient("10.0.0.1:50090", tls=True,
 | `leader_address` | `""` | Inter-party address of the leader (required) |
 | `num_parties` | 3 | Number of participating parties |
 | `threshold` | 3 | Elements in >= threshold parties appear in result |
-| `protocol` | `"ks05_t_mpsi"` | Protocol identifier (`ks05_t_mpsi` or `yyh26_tt_mpsi`) |
+| `protocol` | `"ks05_t_mpsi"` | Protocol identifier (`ks05_t_mpsi`, `beh21_ot_mpsi`, or `yyh26_tt_mpsi`) |
 | `timeout` | None | RPC timeout in seconds |
 
 ## Tests
