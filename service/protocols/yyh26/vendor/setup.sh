@@ -43,7 +43,8 @@ if [ -f setup.sh ]; then
 fi
 mkdir -p build && cd build
 cmake "$YYH26_ROOT" -DCMAKE_BUILD_TYPE=Release
-make -j"$(nproc)"
+# Only build the libOPRF library target (not frontend, which has GCC 11+ compat issues)
+make libOPRF -j"$(nproc)"
 cd "$YYH26_ROOT"
 
 # Step 2: Build libOLE
@@ -94,6 +95,7 @@ mkdir -p "$INCLUDE_DIR"
 
 # Upstream cryptoTools headers (Bt* networking version)
 if [ -d "$YYH26_ROOT/upstream/cryptoTools" ]; then
+    mkdir -p "$INCLUDE_DIR/cryptoTools"
     cp -r "$YYH26_ROOT/upstream/cryptoTools/Common" "$INCLUDE_DIR/cryptoTools/" 2>/dev/null
     cp -r "$YYH26_ROOT/upstream/cryptoTools/Crypto" "$INCLUDE_DIR/cryptoTools/" 2>/dev/null
     cp -r "$YYH26_ROOT/upstream/cryptoTools/Network" "$INCLUDE_DIR/cryptoTools/" 2>/dev/null

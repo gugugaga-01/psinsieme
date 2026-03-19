@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM ubuntu:22.04 AS builder
+FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -12,11 +12,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libboost-system-dev libboost-thread-dev \
     libmpfr-dev \
     nasm \
+    libomp-dev libgoogle-glog-dev libbenchmark-dev libdouble-conversion-dev \
     git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 COPY . .
+
+# Create a dummy git repo so vendor/setup.sh's "git submodule update" is a
+# harmless no-op (the submodule content is already present from COPY).
+RUN git init
+
+# Remove stale CMake caches from host builds (paths differ inside container)
+RUN find . -name CMakeCache.txt -delete && find . -name cmake_install.cmake -delete && \
+    find . -type d -name CMakeFiles -exec rm -rf {} + 2>/dev/null || true
 
 # Build YYH26 upstream dependencies
 RUN bash service/protocols/yyh26/vendor/setup.sh /usr/local
@@ -28,16 +37,17 @@ RUN mkdir -p build && cd build \
     && make -j$(nproc)
 
 # Stage 2: Runtime
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libntl44 libgmp10 \
-    libgrpc++1.51 libprotobuf23 \
-    libssl3 \
-    libboost-system1.74.0 libboost-thread1.74.0 \
+    libgrpc++1.51t64 libprotobuf32t64 \
+    libssl3t64 \
+    libboost-system1.83.0 libboost-thread1.83.0 \
+    libomp5 libgoogle-glog0v6t64 libbenchmark1.8.3 libdouble-conversion3 \
     openssl \
     && rm -rf /var/lib/apt/lists/*
 
