@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
             tls[i].server_cert = readFileStr(certsDir + "/party" + std::to_string(i) + ".pem");
             tls[i].server_key = readFileStr(certsDir + "/party" + std::to_string(i) + "-key.pem");
             tls[i].ca_cert = caCert;
-            tls[i].enable_mtls = true;
+            tls[i].mode = mpsi::TlsMode::MTLS;
         }
     }
 
