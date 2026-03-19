@@ -7,11 +7,11 @@ CERTS_DIR="/app/certs"
 if [ -f "$CERTS_DIR/ca.pem" ]; then
     echo "[entrypoint] Using mounted certificates from $CERTS_DIR"
     # User has certs — inject --certs-dir if not already specified
-    if ! echo "$@" | grep -q -- "--certs-dir\|--cert "; then
+    if ! echo "$@" | grep -qE -- "--certs-dir|--cert "; then
         set -- "$@" --certs-dir "$CERTS_DIR"
     fi
     # Default to mtls if --tls-mode not specified
-    if ! echo "$@" | grep -q -- "--tls-mode"; then
+    if ! echo "$@" | grep -qE -- "--tls-mode"; then
         set -- "$@" --tls-mode mtls
     fi
 else
@@ -29,11 +29,11 @@ else
     echo "[entrypoint] Self-signed certificate generated."
 
     # Inject cert flags if not already specified
-    if ! echo "$@" | grep -q -- "--certs-dir\|--cert "; then
+    if ! echo "$@" | grep -qE -- "--certs-dir|--cert "; then
         set -- "$@" --cert "$CERTS_DIR/server.pem" --key "$CERTS_DIR/server-key.pem"
     fi
     # Default to tls mode (encrypted, no verification)
-    if ! echo "$@" | grep -q -- "--tls-mode"; then
+    if ! echo "$@" | grep -qE -- "--tls-mode"; then
         set -- "$@" --tls-mode tls
     fi
 fi
