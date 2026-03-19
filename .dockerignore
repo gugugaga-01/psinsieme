@@ -1,0 +1,9 @@
+.git
+build/
+*.o
+*.a
+*.so
+docs/
+.claude/
+.github/
+*.md
