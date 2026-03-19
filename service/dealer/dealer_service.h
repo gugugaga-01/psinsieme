@@ -31,10 +31,9 @@ public:
 
         std::unique_lock<std::mutex> lock(mu_);
 
-        // When mTLS is enabled, verify the peer's certificate CN matches
-        // the requested party_id.  The expected CN format is "party{id}"
-        // (e.g., "party0", "party1").  This prevents a semi-honest party
-        // from requesting another party's key share.
+        // CN verification: only effective in mTLS mode where client certs
+        // are requested.  In TLS-only or insecure mode, cn_props is empty
+        // and this block is skipped.
         auto auth_ctx = context->auth_context();
         auto cn_props = auth_ctx ? auth_ctx->FindPropertyValues("x509_common_name")
                                  : std::vector<grpc::string_ref>{};

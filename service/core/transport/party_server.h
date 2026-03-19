@@ -37,8 +37,10 @@ public:
         }
         uint64_t partyId = handshake.value();
 
-        // When mTLS is enabled, verify the peer's certificate CN matches
-        // the claimed party ID.  Expected CN format: "party{id}".
+        // CN verification: in mTLS mode the server requests client certs,
+        // so cn_props will contain the peer's CN.  In TLS-only or insecure
+        // mode no client cert is requested, so cn_props is empty and this
+        // block is skipped.
         auto auth_ctx = context->auth_context();
         auto cn_props = auth_ctx ? auth_ctx->FindPropertyValues("x509_common_name")
                                  : std::vector<grpc::string_ref>{};
