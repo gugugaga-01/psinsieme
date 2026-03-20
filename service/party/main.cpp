@@ -34,7 +34,14 @@ static void printUsage() {
     std::cerr << "Usage: psi_party --address ADDR --addresses ADDR,ADDR,...\n"
               << "                 [--dealer ADDR] [--listen ADDR]\n"
               << "                 [--protocol NAME] [--certs-dir DIR]\n"
+              << "                 [--cert FILE --key FILE --ca FILE]\n"
+              << "                 [--tls-mode insecure|tls|mtls]\n"
               << "                 [--config FILE]\n"
+              << "\n"
+              << "  --cert/--key   Server certificate and private key (PEM).\n"
+              << "  --ca           CA certificate for mTLS verification (optional).\n"
+              << "  --tls-mode     insecure (no TLS), tls (encrypt-only), mtls (mutual TLS).\n"
+              << "                 Defaults to mtls when certs are provided.\n"
               << "\n"
               << "  --dealer is required for ks05_t_mpsi but optional for other protocols.\n"
               << "  If provided, Paillier keys are fetched at startup, enabling KS05 requests.\n"
@@ -46,6 +53,8 @@ int main(int argc, char** argv) {
     std::string addresses_csv;
     std::string my_address;
     std::string certs_dir;
+    std::string certFile, keyFile, caFile;
+    std::string tls_mode_str;
     std::string config_file;
     config.client_listen_addr = "0.0.0.0:50090";
 
@@ -66,6 +75,10 @@ int main(int argc, char** argv) {
         if (kv.count("listen"))    config.client_listen_addr = kv["listen"];
         if (kv.count("protocol"))  config.protocol = kv["protocol"];
         if (kv.count("certs-dir")) certs_dir = kv["certs-dir"];
+        if (kv.count("cert"))      certFile = kv["cert"];
+        if (kv.count("key"))       keyFile = kv["key"];
+        if (kv.count("ca"))        caFile = kv["ca"];
+        if (kv.count("tls-mode"))  tls_mode_str = kv["tls-mode"];
     }
 
     // Second pass: command-line flags override config file
@@ -83,6 +96,14 @@ int main(int argc, char** argv) {
             config.protocol = argv[++i];
         else if (arg == "--certs-dir" && i + 1 < argc)
             certs_dir = argv[++i];
+        else if (arg == "--cert" && i + 1 < argc)
+            certFile = argv[++i];
+        else if (arg == "--key" && i + 1 < argc)
+            keyFile = argv[++i];
+        else if (arg == "--ca" && i + 1 < argc)
+            caFile = argv[++i];
+        else if (arg == "--tls-mode" && i + 1 < argc)
+            tls_mode_str = argv[++i];
         else if (arg == "--config" && i + 1 < argc)
             ++i; // already handled
         else if (arg == "--help" || arg == "-h") {
@@ -121,16 +142,33 @@ int main(int argc, char** argv) {
                         config.party_addresses.end(), my_address);
     config.party_id = std::distance(config.party_addresses.begin(), it);
 
-    // TLS setup from certs directory
-    if (!certs_dir.empty()) {
-        std::string ca = mpsi::readFile(certs_dir + "/ca.pem");
-        std::string cert = mpsi::readFile(certs_dir + "/party" +
+    // TLS setup: --cert/--key take precedence over --certs-dir
+    mpsi::TlsConfig tls;
+    if (!certFile.empty() && !keyFile.empty()) {
+        tls.server_cert = mpsi::readFile(certFile);
+        tls.server_key = mpsi::readFile(keyFile);
+        if (!caFile.empty())
+            tls.ca_cert = mpsi::readFile(caFile);
+    } else if (!certs_dir.empty()) {
+        tls.server_cert = mpsi::readFile(certs_dir + "/party" +
             std::to_string(config.party_id) + ".pem");
-        std::string key = mpsi::readFile(certs_dir + "/party" +
+        tls.server_key = mpsi::readFile(certs_dir + "/party" +
             std::to_string(config.party_id) + "-key.pem");
-        config.inter_party_tls = {cert, key, ca, true};
-        config.client_tls = config.inter_party_tls;
+        tls.ca_cert = mpsi::readFile(certs_dir + "/ca.pem");
     }
+
+    // Determine TLS mode
+    if (!tls.server_cert.empty()) {
+        if (tls_mode_str == "insecure")
+            tls.mode = mpsi::TlsMode::INSECURE;
+        else if (tls_mode_str == "tls")
+            tls.mode = mpsi::TlsMode::TLS;
+        else
+            tls.mode = mpsi::TlsMode::MTLS;  // default when certs provided
+    }
+
+    config.inter_party_tls = tls;
+    config.client_tls = tls;
 
     // Create PsiService — protocol plugins are set up automatically
     // (KS05 fetches dealer keys, YYH26 is a no-op, etc.)

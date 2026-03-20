@@ -77,6 +77,78 @@ bash service/demos/beh21/demo.sh
 bash service/demos/yyh26/demo.sh
 ```
 
+## Docker Quick-Start
+
+Pull the pre-built image:
+
+```bash
+docker pull gugugaga001/multiparty-psi:latest
+```
+
+### Local 3-party demo (auto-generated TLS certs)
+
+```bash
+# Create a Docker network
+docker network create psi-net
+
+# Start the dealer (KS05 key distribution)
+docker run -d --name dealer --network psi-net \
+  gugugaga001/multiparty-psi \
+  psi_dealer --parties 3 --listen 0.0.0.0:53050
+
+# Start 3 parties
+for i in 0 1 2; do
+  docker run -d --name "party${i}" --network psi-net \
+    gugugaga001/multiparty-psi \
+    psi_party --address "party${i}:5300${i}" \
+    --addresses "$(echo 0 1 2 | tr ' ' '\n' | grep -v $i | sed "s/\(.*\)/party\1:5300\1/" | paste -sd,)" \
+    --dealer dealer:53050 --listen "0.0.0.0:5009${i}"
+done
+```
+
+Each container auto-generates a self-signed certificate and runs in **TLS mode** (encrypted, no certificate verification). This is suitable for testing but not production.
+
+### Running with your own certificates (mTLS)
+
+Mount your certificate directory to `/app/certs/`:
+
+```bash
+docker run -d --name party0 --network psi-net \
+  -v /path/to/certs:/app/certs:ro \
+  gugugaga001/multiparty-psi \
+  psi_party --address party0:53000 \
+  --addresses party1:53001,party2:53002 \
+  --dealer dealer:53050 --listen 0.0.0.0:50090
+```
+
+When certs are detected at `/app/certs/`, the entrypoint defaults to **mTLS mode** with `--certs-dir /app/certs`. The directory should contain `ca.pem`, `partyN.pem`, and `partyN-key.pem` (see [mTLS](#mtls) for details).
+
+### TLS modes
+
+| Mode | Flag | Description |
+|------|------|-------------|
+| `insecure` | `--tls-mode insecure` | No encryption (plaintext) |
+| `tls` | `--tls-mode tls` | Encrypted channel, no certificate verification (default with auto-generated certs) |
+| `mtls` | `--tls-mode mtls` | Full mutual TLS with certificate verification (default with mounted certs) |
+
+Override the default mode with `--tls-mode`:
+
+```bash
+docker run -d --name party0 --network psi-net \
+  gugugaga001/multiparty-psi \
+  psi_party --address party0:53000 \
+  --addresses party1:53001,party2:53002 \
+  --tls-mode insecure --listen 0.0.0.0:50090
+```
+
+### Cleanup
+
+```bash
+docker stop dealer party0 party1 party2
+docker rm dealer party0 party1 party2
+docker network rm psi-net
+```
+
 ## Usage
 
 ### Step 1: Start party processes
@@ -316,6 +388,10 @@ with PsiClient("10.0.0.1:50090", tls=True,
 | `--listen` | No | Client-facing listen address (default: `0.0.0.0:50090`) |
 | `--protocol` | No | Default protocol (default: `ks05_t_mpsi`); clients can override per-request |
 | `--certs-dir` | No | Directory with `ca.pem`, `partyN.pem`, `partyN-key.pem` |
+| `--tls-mode` | No | TLS mode: `insecure`, `tls`, or `mtls` (default: `tls` with auto-cert, `mtls` with `--certs-dir`) |
+| `--cert` | No | Path to this party's certificate file (overrides `--certs-dir`) |
+| `--key` | No | Path to this party's private key file (overrides `--certs-dir`) |
+| `--ca` | No | Path to CA certificate file (overrides `--certs-dir`) |
 | `--config` | No | Config file (key = value format, CLI flags override) |
 
 ### psi_dealer
@@ -325,6 +401,10 @@ with PsiClient("10.0.0.1:50090", tls=True,
 | `--parties` | Yes | Number of parties expected |
 | `--listen` | Yes | Listen address (e.g. `0.0.0.0:50051`) |
 | `--certs-dir` | No | Directory with `ca.pem`, `dealer.pem`, `dealer-key.pem` |
+| `--tls-mode` | No | TLS mode: `insecure`, `tls`, or `mtls` (default: `tls` with auto-cert, `mtls` with `--certs-dir`) |
+| `--cert` | No | Path to the dealer's certificate file (overrides `--certs-dir`) |
+| `--key` | No | Path to the dealer's private key file (overrides `--certs-dir`) |
+| `--ca` | No | Path to CA certificate file (overrides `--certs-dir`) |
 | `--config` | No | Config file (key = value format, CLI flags override) |
 
 ### Python client (`compute_intersection`)

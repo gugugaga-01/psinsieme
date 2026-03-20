@@ -38,7 +38,11 @@ static void signalHandler(int) {
 static void printUsage() {
     std::cerr << "Usage: psi_dealer --parties N --listen ADDR\n"
               << "                  [--cert FILE --key FILE --ca FILE]\n"
-              << "                  [--certs-dir DIR] [--config FILE]\n";
+              << "                  [--certs-dir DIR] [--config FILE]\n"
+              << "                  [--tls-mode insecure|tls|mtls]\n"
+              << "\n"
+              << "  --tls-mode     insecure (no TLS), tls (encrypt-only), mtls (mutual TLS).\n"
+              << "                 Defaults to mtls when certs are provided.\n";
 }
 
 int main(int argc, char** argv) {
@@ -46,6 +50,7 @@ int main(int argc, char** argv) {
     std::string listenAddr;
     std::string certsDir;
     std::string certFile, keyFile, caFile;
+    std::string tls_mode_str;
     std::string configFile;
 
     // First pass: find --config
@@ -64,6 +69,7 @@ int main(int argc, char** argv) {
         if (kv.count("key"))       keyFile = kv["key"];
         if (kv.count("ca"))        caFile = kv["ca"];
         if (kv.count("certs-dir")) certsDir = kv["certs-dir"];
+        if (kv.count("tls-mode"))  tls_mode_str = kv["tls-mode"];
     }
 
     // Second pass: command-line flags override config file
@@ -81,6 +87,8 @@ int main(int argc, char** argv) {
             caFile = argv[++i];
         else if (arg == "--certs-dir" && i + 1 < argc)
             certsDir = argv[++i];
+        else if (arg == "--tls-mode" && i + 1 < argc)
+            tls_mode_str = argv[++i];
         else if (arg == "--config" && i + 1 < argc)
             ++i; // already handled
         else if (arg == "--help" || arg == "-h") {
@@ -103,29 +111,35 @@ int main(int argc, char** argv) {
 
     // TLS setup: explicit flags take precedence over --certs-dir
     mpsi::TlsConfig tls;
-    if (!certFile.empty() && !keyFile.empty() && !caFile.empty()) {
+    if (!certFile.empty() && !keyFile.empty()) {
         tls.server_cert = mpsi::readFile(certFile);
         tls.server_key = mpsi::readFile(keyFile);
-        tls.ca_cert = mpsi::readFile(caFile);
-        tls.enable_mtls = true;
+        if (!caFile.empty())
+            tls.ca_cert = mpsi::readFile(caFile);
     } else if (!certsDir.empty()) {
         tls.server_cert = mpsi::readFile(certsDir + "/dealer.pem");
         tls.server_key = mpsi::readFile(certsDir + "/dealer-key.pem");
         tls.ca_cert = mpsi::readFile(certsDir + "/ca.pem");
-        tls.enable_mtls = true;
     }
 
-    if (tls.enable_mtls) {
-        auto creds = mpsi::makeServerCredentials(tls);
-        builder.AddListeningPort(listenAddr, creds);
-        std::cerr << "[Dealer] Listening on " << listenAddr << " (mTLS)"
-                  << std::endl;
-    } else {
-        builder.AddListeningPort(listenAddr,
-                                  grpc::InsecureServerCredentials());
-        std::cerr << "[Dealer] Listening on " << listenAddr << " (insecure)"
-                  << std::endl;
+    // Determine TLS mode
+    if (!tls.server_cert.empty()) {
+        if (tls_mode_str == "insecure")
+            tls.mode = mpsi::TlsMode::INSECURE;
+        else if (tls_mode_str == "tls")
+            tls.mode = mpsi::TlsMode::TLS;
+        else
+            tls.mode = mpsi::TlsMode::MTLS;  // default when certs provided
     }
+
+    auto creds = mpsi::makeServerCredentials(tls);
+    builder.AddListeningPort(listenAddr, creds);
+
+    const char* mode_label = tls.mode == mpsi::TlsMode::MTLS ? "mTLS"
+                           : tls.mode == mpsi::TlsMode::TLS  ? "TLS"
+                           : "insecure";
+    std::cerr << "[Dealer] Listening on " << listenAddr
+              << " (" << mode_label << ")" << std::endl;
 
     builder.RegisterService(&dealer);
     g_server = builder.BuildAndStart();
