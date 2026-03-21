@@ -1,0 +1,180 @@
+*********************
+numParty: 2 setSize: 32
+Expected Intersection: 24
+Output Intersection: 24
+*********************
+otInit: 7
+DKG: 4
+EBF: 39
+SendEBF: 132
+Client_test: 0
+OPPRF: 164
+OPPRFoutProcess: 1
+SendCipher: 29
+PartDecrypt: 10
+SendDecryRes: 15
+Intersection: 17
+-------------------------------
+total_time: 0.414
+Total Comm: Send:0.0301313 MB	 Recv: 0.00198364 MB
+------------------
+*********************
+numParty: 2 setSize: 32
+Expected Intersection: 24
+Output Intersection: 24
+*********************
+otInit: 3
+DKG: 1
+EBF: 38
+SendEBF: 61
+Client_test: 0
+OPPRF: 261
+OPPRFoutProcess: 0
+SendCipher: 16
+PartDecrypt: 6
+SendDecryRes: 33
+Intersection: 9
+-------------------------------
+total_time: 0.427
+Total Comm: Send:0.0301313 MB	 Recv: 0.00198364 MB
+------------------
+*********************
+numParty: 5 setSize: 32
+Expected Intersection: 24
+Output Intersection: 24
+*********************
+otInit: 2
+DKG: 2
+EBF: 17
+SendEBF: 375
+Client_test: 0
+OPPRF: 166
+OPPRFoutProcess: 4
+SendCipher: 20
+PartDecrypt: 17
+SendDecryRes: 38
+Intersection: 9
+-------------------------------
+total_time: 0.35175
+Total Comm: Send:0.120525 MB	 Recv: 0.00793457 MB
+------------------
+*********************
+numParty: 5 setSize: 256
+Expected Intersection: 152
+Output Intersection: 152
+*********************
+otInit: 1
+DKG: 17
+EBF: 84
+SendEBF: 2808
+Client_test: 3
+OPPRF: 874
+OPPRFoutProcess: 38
+SendCipher: 99
+PartDecrypt: 81
+SendDecryRes: 162
+Intersection: 68
+-------------------------------
+total_time: 2.03775
+Total Comm: Send:0.961346 MB	 Recv: 0.0626221 MB
+------------------
+*********************
+numParty: 5 setSize: 256
+Expected Intersection: 152
+Output Intersection: 152
+*********************
+otInit: 7
+DKG: 1
+EBF: 78
+SendEBF: 2667
+Client_test: 0
+OPPRF: 805
+OPPRFoutProcess: 29
+SendCipher: 116
+PartDecrypt: 73
+SendDecryRes: 118
+Intersection: 50
+-------------------------------
+total_time: 1.85575
+Total Comm: Send:0.961346 MB	 Recv: 0.0626221 MB
+------------------
+*********************
+numParty: 5 setSize: 4096
+Expected Intersection: 1176
+Output Intersection: 1176
+*********************
+otInit: 3
+DKG: 4
+EBF: 955
+SendEBF: 42701
+Client_test: 0
+OPPRF: 11892
+OPPRFoutProcess: 455
+SendCipher: 1495
+PartDecrypt: 1191
+SendDecryRes: 1125
+Intersection: 665
+-------------------------------
+total_time: 27.335
+Total Comm: Send:15.3778 MB	 Recv: 1.00012 MB
+------------------
+*********************
+numParty: 5 setSize: 1024
+Expected Intersection: 152
+Output Intersection: 152
+*********************
+otInit: 1
+DKG: 4
+EBF: 265
+SendEBF: 11567
+Client_test: 0
+OPPRF: 3419
+OPPRFoutProcess: 133
+SendCipher: 529
+PartDecrypt: 374
+SendDecryRes: 392
+Intersection: 245
+-------------------------------
+total_time: 7.853
+Total Comm: Send:3.84465 MB	 Recv: 0.250122 MB
+------------------
+*********************
+numParty: 5 setSize: 16384
+Expected Intersection: 9368
+Output Intersection: 9368
+*********************
+otInit: 10
+DKG: 7
+EBF: 4035
+SendEBF: 180078
+Client_test: 0
+OPPRF: 42920
+OPPRFoutProcess: 1800
+SendCipher: 5968
+PartDecrypt: 5491
+SendDecryRes: 5143
+Intersection: 3423
+-------------------------------
+total_time: 109.334
+Total Comm: Send:61.5107 MB	 Recv: 4.00012 MB
+------------------
+*********************
+numParty: 5 setSize: 32
+Expected Intersection: 24
+Output Intersection: 24
+*********************
+otInit: 10
+DKG: 3
+EBF: 23
+SendEBF: 381
+Client_test: 0
+OPPRF: 180
+OPPRFoutProcess: 8
+SendCipher: 22
+PartDecrypt: 16
+SendDecryRes: 28
+Intersection: 15
+-------------------------------
+total_time: 0.38075
+Total Comm: Send:0.120525 MB	 Recv: 0.00793457 MB
+------------------
