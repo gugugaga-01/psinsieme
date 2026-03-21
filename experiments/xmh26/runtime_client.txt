@@ -1,0 +1,268 @@
+Client Idx: 0
+numParty: 20  setSize: 1024  nTrials:1
+Total time: 12.03 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 20  setSize: 1024  nTrials:1
+Total time: 12.571 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 20  setSize: 1024  nTrials:1
+Total time: 8.57 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 20  setSize: 16384  nTrials:1
+Total time: 155.044 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 10  setSize: 1024  nTrials:1
+Total time: 8.057 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 16  nTrials:1
+Total time: 0.207 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 64  nTrials:1
+Total time: 0.564 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 256  nTrials:1
+Total time: 2.017 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 1024  nTrials:1
+Total time: 7.862 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 4096  nTrials:1
+Total time: 30.607 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 16384  nTrials:1
+Total time: 122.075 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 10  setSize: 16  nTrials:1
+Total time: 0.216 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 10  setSize: 64  nTrials:1
+Total time: 0.619 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 10  setSize: 256  nTrials:1
+Total time: 2.069 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 10  setSize: 1024  nTrials:1
+Total time: 8.079 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 10  setSize: 4096  nTrials:1
+Total time: 31.101 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 10  setSize: 16384  nTrials:1
+Total time: 124.448 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 15  setSize: 16  nTrials:1
+Total time: 0.243 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 15  setSize: 64  nTrials:1
+Total time: 0.639 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 15  setSize: 256  nTrials:1
+Total time: 2.076 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 15  setSize: 1024  nTrials:1
+Total time: 8.352 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 15  setSize: 4096  nTrials:1
+Total time: 31.656 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 15  setSize: 16384  nTrials:1
+Total time: 126.453 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 20  setSize: 16  nTrials:1
+Total time: 0.259 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 20  setSize: 64  nTrials:1
+Total time: 0.672 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 20  setSize: 256  nTrials:1
+Total time: 2.083 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 20  setSize: 1024  nTrials:1
+Total time: 8.414 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 20  setSize: 4096  nTrials:1
+Total time: 33.304 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 20  setSize: 16384  nTrials:1
+Total time: 128.678 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 30  setSize: 16  nTrials:1
+Total time: 0.222 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 30  setSize: 64  nTrials:1
+Total time: 0.675 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 30  setSize: 256  nTrials:1
+Total time: 2.244 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 30  setSize: 1024  nTrials:1
+Total time: 10.138 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 30  setSize: 4096  nTrials:1
+Total time: 33.061 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 30  setSize: 16384  nTrials:1
+Total time: 132.946 s
+total_sd: 0 s
+*********************
+
+
+画图
+Client Idx: 0
+numParty: 5  setSize: 32  nTrials:1
+Total time: 0.341 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 128  nTrials:1
+Total time: 1.047 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 512  nTrials:1
+Total time: 3.901 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 2048  nTrials:1
+Total time: 15.982 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 8192  nTrials:1
+Total time: 61.508 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 32  nTrials:1
+Total time: 1.091 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 128  nTrials:1
+Total time: 2.681 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 512  nTrials:1
+Total time: 12.352 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 2048  nTrials:1
+Total time: 30.735 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 2  setSize: 32  nTrials:1
+Total time: 0.063 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 2  setSize: 32  nTrials:1
+Total time: 0.056 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 32  nTrials:1
+Total time: 0.117 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 256  nTrials:1
+Total time: 0.681 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 256  nTrials:1
+Total time: 0.724 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 4096  nTrials:1
+Total time: 10.754 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 1024  nTrials:1
+Total time: 1.998 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 16384  nTrials:1
+Total time: 33.082 s
+total_sd: 0 s
+*********************
+Client Idx: 0
+numParty: 5  setSize: 32  nTrials:1
+Total time: 0.126 s
+total_sd: 0 s
+*********************
