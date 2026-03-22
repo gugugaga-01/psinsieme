@@ -96,6 +96,19 @@ if(MPSI_BUILD_BEH21)
         beh21_protocol beh21_crypto ks05_crypto mpsi_core
         ${NTL_LIBRARY} ${GMP_LIBRARY})
     add_test(NAME beh21_integration COMMAND test_beh21_integration)
+
+    # gRPC integration test (3 parties over gRPC with optional mTLS)
+    add_executable(test_beh21_grpc protocols/beh21/test_beh21_grpc_integration.cpp)
+    target_include_directories(test_beh21_grpc PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+        ${NTL_INCLUDE_DIR}
+    )
+    target_link_libraries(test_beh21_grpc PRIVATE
+        beh21_protocol beh21_crypto ks05_crypto mpsi_core mpsi_proto
+        ${NTL_LIBRARY} ${GMP_LIBRARY})
+    add_test(NAME beh21_grpc COMMAND test_beh21_grpc)
+    add_test(NAME beh21_grpc_tls COMMAND test_beh21_grpc --tls
+        --certs-dir "${CMAKE_CURRENT_SOURCE_DIR}/../certs/test")
 endif()
 
 # === YYH26 TT-MPSI Tests ===
