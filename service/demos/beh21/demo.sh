@@ -228,7 +228,25 @@ for i in $(seq 0 $((NUM_PARTIES - 1))); do
 done
 
 echo "[Demo] Waiting for key distribution..."
-sleep 5
+# Wait until all party client ports are listening (up to 30 seconds)
+TIMEOUT=30
+ELAPSED=0
+while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
+    ALL_READY=true
+    for i in $(seq 0 $((NUM_PARTIES - 1))); do
+        if ! ss -tln 2>/dev/null | grep -q ":${CLIENT_PORTS[$i]} " 2>/dev/null; then
+            ALL_READY=false
+            break
+        fi
+    done
+    if $ALL_READY; then break; fi
+    sleep 1
+    ELAPSED=$((ELAPSED + 1))
+done
+if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+    echo "[Demo] ERROR: Timed out waiting for parties to start"
+    exit 1
+fi
 echo ""
 echo "[Demo] All $NUM_PARTIES parties running. Submitting inputs..."
 echo ""
