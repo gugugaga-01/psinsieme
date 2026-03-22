@@ -17,8 +17,10 @@ namespace mpsi {
 // Key dealer service implementation.
 //
 // Generates Paillier threshold key material and distributes individual
-// shares to each party.  After all parties have collected their shares,
-// the dealer wipes all sensitive material (factorization, shares).
+// shares to each party.  Multiple protocols may share the same key
+// material, so a party may fetch its share more than once (e.g. once
+// per protocol plugin).  The dealer tracks unique party IDs and signals
+// completion once every party has collected at least once.
 class KeyDealerImpl final : public KeyDealer::Service {
 public:
     explicit KeyDealerImpl(uint64_t expected_parties)
@@ -84,13 +86,6 @@ public:
 
         uint64_t pid = request->party_id();
 
-        if (collected_.count(pid)) {
-            auto* s = response->mutable_status();
-            s->set_code(STATUS_ERROR);
-            s->set_message("Party already collected its key share");
-            return grpc::Status::OK;
-        }
-
         if (pid >= secret_keys_.size()) {
             auto* s = response->mutable_status();
             s->set_code(STATUS_ERROR);
@@ -110,19 +105,25 @@ public:
         s->set_code(STATUS_OK);
         s->set_message("Key share delivered for party " + std::to_string(pid));
 
-        // Track which parties have collected their shares
+        // Track which parties have collected their shares.
+        // A party may fetch multiple times (once per protocol plugin),
+        // but we only count unique party IDs for the completion check.
+        bool first_fetch = (collected_.count(pid) == 0);
         collected_.insert(pid);
         std::cerr << "[Dealer] Delivered key share to party " << pid
-                  << " (" << collected_.size() << "/" << expected_parties_
-                  << ")" << std::endl;
+                  << " (protocol: " << request->protocol()
+                  << ", " << collected_.size() << "/" << expected_parties_
+                  << " unique parties)" << std::endl;
 
-        // If all parties have collected, wipe secrets
-        if (collected_.size() == expected_parties_) {
-            wipeSecrets();
+        // Signal completion once every party has fetched at least once.
+        // Note: secrets are NOT wiped here because other protocol plugins
+        // on the same party may still need to fetch.  The dealer process
+        // exits after the demo/test completes, which cleans up.
+        if (first_fetch && collected_.size() == expected_parties_) {
             all_collected_ = true;
             all_collected_cv_.notify_all();
-            std::cerr << "[Dealer] All parties served. Secrets wiped."
-                      << std::endl;
+            std::cerr << "[Dealer] All " << expected_parties_
+                      << " parties served." << std::endl;
         }
 
         return grpc::Status::OK;
@@ -148,12 +149,6 @@ private:
 
         ks05::distributedKeyGen(ks05::PAILLIER_KEY_BITS, n,
                                 pub_key_, secret_keys_);
-    }
-
-    void wipeSecrets() {
-        for (auto& sk : secret_keys_)
-            NTL::clear(sk.s);
-        secret_keys_.clear();
     }
 
     static std::string serializeZZ(const NTL::ZZ& val) {
