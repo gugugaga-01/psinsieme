@@ -203,6 +203,106 @@ static bool testThresholdLessThanN() {
     return false;
 }
 
+// Test 4: Empty intersection (no element meets the threshold)
+// Party 0: {1, 2}  Party 1: {3, 4}  Party 2: {5, 6}
+// Threshold=3 => no element in all 3 => intersection = {}
+static bool testEmptyIntersection() {
+    std::cout << "\n=== Test 4: Empty intersection, threshold=3 ===" << std::endl;
+
+    const uint64_t numParties = 3;
+    NTL::SetSeed(NTL::to_ZZ(42UL));
+    PubKey pk;
+    std::vector<PrivKey> sks;
+    distributedKeyGen(PAILLIER_KEY_BITS, numParties, pk, sks);
+
+    std::vector<std::vector<Element>> inputs = {
+        {makeElement(1), makeElement(2)},
+        {makeElement(3), makeElement(4)},
+        {makeElement(5), makeElement(6)},
+    };
+
+    auto result = runProtocol(numParties, 3, inputs, pk, sks);
+    std::set<uint64_t> expected = {};
+
+    std::cout << "Intersection: {";
+    for (auto v : result) std::cout << v << ", ";
+    std::cout << "}" << std::endl;
+
+    if (result == expected) {
+        std::cout << "TEST 4 PASSED" << std::endl;
+        return true;
+    }
+    std::cerr << "TEST 4 FAILED" << std::endl;
+    return false;
+}
+
+// Test 5: Four parties, full threshold
+// Party 0: {1, 2, 3, 5}  Party 1: {2, 3, 4, 5}  Party 2: {3, 5, 6, 7}  Party 3: {3, 5, 8, 9}
+// Threshold=4 => elements in all 4 = {3, 5}
+static bool testFourParties() {
+    std::cout << "\n=== Test 5: Four parties, threshold=4 ===" << std::endl;
+
+    const uint64_t numParties = 4;
+    NTL::SetSeed(NTL::to_ZZ(42UL));
+    PubKey pk;
+    std::vector<PrivKey> sks;
+    distributedKeyGen(PAILLIER_KEY_BITS, numParties, pk, sks);
+
+    std::vector<std::vector<Element>> inputs = {
+        {makeElement(1), makeElement(2), makeElement(3), makeElement(5)},
+        {makeElement(2), makeElement(3), makeElement(4), makeElement(5)},
+        {makeElement(3), makeElement(5), makeElement(6), makeElement(7)},
+        {makeElement(3), makeElement(5), makeElement(8), makeElement(9)},
+    };
+
+    auto result = runProtocol(numParties, 4, inputs, pk, sks);
+    std::set<uint64_t> expected = {3, 5};
+
+    std::cout << "Intersection: {";
+    for (auto v : result) std::cout << v << ", ";
+    std::cout << "}" << std::endl;
+
+    if (result == expected) {
+        std::cout << "TEST 5 PASSED" << std::endl;
+        return true;
+    }
+    std::cerr << "TEST 5 FAILED" << std::endl;
+    return false;
+}
+
+// Test 6: Single element sets, all share same element
+// Party 0: {42}  Party 1: {42}  Party 2: {42}
+// Threshold=3 => intersection = {42}
+static bool testSingleElementSets() {
+    std::cout << "\n=== Test 6: Single element sets ===" << std::endl;
+
+    const uint64_t numParties = 3;
+    NTL::SetSeed(NTL::to_ZZ(42UL));
+    PubKey pk;
+    std::vector<PrivKey> sks;
+    distributedKeyGen(PAILLIER_KEY_BITS, numParties, pk, sks);
+
+    std::vector<std::vector<Element>> inputs = {
+        {makeElement(42)},
+        {makeElement(42)},
+        {makeElement(42)},
+    };
+
+    auto result = runProtocol(numParties, 3, inputs, pk, sks);
+    std::set<uint64_t> expected = {42};
+
+    std::cout << "Intersection: {";
+    for (auto v : result) std::cout << v << ", ";
+    std::cout << "}" << std::endl;
+
+    if (result == expected) {
+        std::cout << "TEST 6 PASSED" << std::endl;
+        return true;
+    }
+    std::cerr << "TEST 6 FAILED" << std::endl;
+    return false;
+}
+
 int main() {
     std::cout << "=== BEH21 OT-MPSI In-Process Integration Tests ===" << std::endl;
     Logger::getInstance().setEnabled(true);
@@ -211,6 +311,9 @@ int main() {
     allPassed &= testEqualSizes();
     allPassed &= testVariableSizes();
     allPassed &= testThresholdLessThanN();
+    allPassed &= testEmptyIntersection();
+    allPassed &= testFourParties();
+    allPassed &= testSingleElementSets();
 
     std::cout << "\n=== Summary ===" << std::endl;
     if (allPassed) {

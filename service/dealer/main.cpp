@@ -27,7 +27,9 @@
 #include <grpcpp/grpcpp.h>
 #include <iostream>
 #include <string>
+#include <chrono>
 #include <csignal>
+#include <thread>
 
 static std::unique_ptr<grpc::Server> g_server;
 
@@ -141,11 +143,16 @@ int main(int argc, char** argv) {
     std::cerr << "[Dealer] Waiting for " << numParties
               << " parties to collect their key shares..." << std::endl;
 
-    // Wait until all parties have collected, then shut down
+    // Wait until all parties have collected, then allow a grace period
+    // for additional fetches (e.g. parties with multiple protocol plugins
+    // may fetch the same keys more than once).
     dealer.waitUntilDone();
 
-    std::cerr << "[Dealer] All shares distributed. Shutting down."
+    std::cerr << "[Dealer] All parties served. Waiting for late fetches..."
               << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+
+    std::cerr << "[Dealer] Shutting down." << std::endl;
     g_server->Shutdown();
 
     return 0;
