@@ -1,5 +1,6 @@
 #include "OPPRFSender.h"
 
+#include <algorithm>
 #include "Crypto/Commit.h"
 #include "Common/Log.h"
 #include "Common/Log1.h"
