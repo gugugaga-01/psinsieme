@@ -9,6 +9,7 @@ Experimental implementations of multi-party Private Set Intersection (PSI) proto
 | KS05 Threshold MPSI | Kissner & Song, CRYPTO 2005 [[doi]](https://doi.org/10.1007/11535218_15) | [experiments/ks05](experiments/ks05/) | [service](service/) |
 | BEH21 Threshold MPSI | Bay et al., IEEE TIFS 2021 [[doi]](https://doi.org/10.1109/TIFS.2021.3118879) | [experiments/beh21](experiments/beh21/) | [service](service/) |
 | YYH26 T-Threshold MPSI | TBD, NDSS 2026 | [experiments/yyh26](experiments/yyh26/) | [service](service/) |
+| XZH26 EC-ElGamal Bloom OPPRF MPSI | TBD | [experiments/xzh26](experiments/xzh26/) | — |
 
 The repository has two layers:
 
@@ -128,6 +129,7 @@ multiparty-psi-protocols-experimental/
 │   ├── ks05/            # Kissner-Song CRYPTO'05 T-MPSI
 │   ├── beh21/           # Bay et al. TIFS'21 OT-MPSI
 │   ├── yyh26/           # YYH26 NDSS'26 TT-MPSI
+│   ├── xzh26/           # XZH26 EC-ElGamal Bloom OPPRF MPSI
 │   └── tools/           # Shared benchmark scripts
 └── service/             # gRPC service framework (mTLS, dealer, Python client)
     ├── proto/           # Protobuf definitions
