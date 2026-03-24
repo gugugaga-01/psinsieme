@@ -28,7 +28,16 @@ cmake .. -DMPSI_BUILD_BEH21=ON
 make -j$(nproc)
 ```
 
-Prerequisites: gRPC, protobuf, NTL, GMP.
+To enable XZH26 EC-MPSI protocol support (requires libsodium, Boost):
+
+```bash
+# Ensure yyh26 upstream submodule is initialized (provides cryptoTools)
+git submodule update --init experiments/yyh26/upstream
+cmake .. -DMPSI_BUILD_XZH26=ON
+make -j$(nproc)
+```
+
+Prerequisites: gRPC, protobuf, NTL, GMP. XZH26 additionally requires libsodium and Boost.
 
 ## Supported Protocols
 
@@ -37,6 +46,7 @@ Prerequisites: gRPC, protobuf, NTL, GMP.
 | `ks05_t_mpsi` | Kissner & Song, CRYPTO 2005 | Paillier threshold encryption (3072-bit) | Required (trusted dealer) | gRPC (mTLS optional) |
 | `beh21_ot_mpsi` | Bay et al., IEEE TIFS 2021 | Paillier threshold encryption + Bloom filters + SCP | Required (trusted dealer) | gRPC (mTLS optional) |
 | `yyh26_tt_mpsi` | Yanai et al., NDSS 2026 | OPPRF + KKRT OT + BFV BOLE + Shamir SS | Not needed | Unencrypted TCP (BtEndpoint)* |
+| `xzh26_ec_mpsi` | TBD | EC-ElGamal (Ristretto255) + Bloom filters + OPPRF | Not needed (runtime DKG) | gRPC (mTLS optional) |
 
 Both protocols operate under the **semi-honest** (honest-but-curious) threat model.
 

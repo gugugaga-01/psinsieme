@@ -221,6 +221,65 @@ if(MPSI_BUILD_BEH21)
     target_link_libraries(psi_party PRIVATE beh21_protocol beh21_crypto)
 endif()
 
+# XZH26 EC-ElGamal Bloom OPPRF MPSI protocol (optional)
+option(MPSI_BUILD_XZH26 "Build XZH26 EC-MPSI protocol support" OFF)
+
+if(MPSI_BUILD_XZH26)
+    find_library(SODIUM_LIB sodium)
+    if(NOT SODIUM_LIB)
+        message(FATAL_ERROR "libsodium not found. Install: sudo apt install libsodium-dev")
+    endif()
+
+    # cryptoTools headers and sources from yyh26 upstream
+    set(CRYPTOTOOLS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../experiments/yyh26/upstream/cryptoTools")
+    set(MIRACL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../experiments/yyh26/upstream/thirdparty/linux/miracl")
+
+    find_library(MIRACL_LIB NAMES miracl HINTS "${MIRACL_DIR}/miracl/source/")
+    find_package(Boost REQUIRED COMPONENTS system thread)
+
+    # Build cryptoTools from yyh26 upstream
+    file(GLOB_RECURSE CRYPTOTOOLS_SRCS "${CRYPTOTOOLS_DIR}/*.cpp")
+    add_library(xzh26_cryptotools ${CRYPTOTOOLS_SRCS})
+    target_compile_definitions(xzh26_cryptotools PUBLIC NO_INTEL_ASM_SHA1=1)
+    target_include_directories(xzh26_cryptotools PUBLIC "${CRYPTOTOOLS_DIR}" "${MIRACL_DIR}")
+    target_compile_options(xzh26_cryptotools PRIVATE -maes -msse2 -msse4.1 -mpclmul -w -std=c++14)
+    target_link_libraries(xzh26_cryptotools PUBLIC ${MIRACL_LIB} ${Boost_LIBRARIES})
+
+    # XZH26 crypto primitives
+    add_library(xzh26_crypto
+        protocols/xzh26/crypto/point.cpp
+        protocols/xzh26/crypto/bloom_filter.cpp
+        protocols/xzh26/crypto/murmurhash3.cpp
+    )
+    target_include_directories(xzh26_crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(xzh26_crypto PUBLIC ${SODIUM_LIB})
+
+    # XZH26 protocol (OPPRF, hashing, EC-MPSI)
+    add_library(xzh26_protocol
+        protocols/xzh26/protocol/ec_mpsi.cpp
+        protocols/xzh26/protocol/binSet.cpp
+        protocols/xzh26/protocol/OPPRFSender.cpp
+        protocols/xzh26/protocol/OPPRFReceiver.cpp
+        protocols/xzh26/protocol/CuckooHasher1.cpp
+        protocols/xzh26/protocol/SimpleHasher1.cpp
+        protocols/xzh26/protocol/BitPosition.cpp
+    )
+    target_include_directories(xzh26_protocol PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    target_include_directories(xzh26_protocol PRIVATE "${CRYPTOTOOLS_DIR}")
+    target_compile_options(xzh26_protocol PRIVATE -maes -msse2 -msse4.1 -mpclmul -Wno-sign-compare)
+    target_link_libraries(xzh26_protocol PUBLIC
+        xzh26_crypto xzh26_cryptotools mpsi_core ${SODIUM_LIB} pthread)
+
+    add_library(xzh26_plugin OBJECT
+        protocols/xzh26/xzh26_plugin.cpp
+    )
+    target_include_directories(xzh26_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(xzh26_plugin PRIVATE xzh26_protocol mpsi_core mpsi_proto)
+
+    target_sources(psi_party PRIVATE $<TARGET_OBJECTS:xzh26_plugin>)
+    target_link_libraries(psi_party PRIVATE xzh26_protocol xzh26_crypto ${SODIUM_LIB})
+endif()
+
 # psi_dealer binary (trusted key dealer service)
 add_executable(psi_dealer
     dealer/main.cpp

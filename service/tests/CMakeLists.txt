@@ -111,6 +111,31 @@ if(MPSI_BUILD_BEH21)
         --certs-dir "${CMAKE_CURRENT_SOURCE_DIR}/../certs/test")
 endif()
 
+# === XZH26 EC-MPSI Tests ===
+if(MPSI_BUILD_XZH26)
+    find_library(SODIUM_LIB sodium)
+
+    # In-process integration test
+    add_executable(test_xzh26_integration protocols/xzh26/test_xzh26_integration.cpp)
+    target_include_directories(test_xzh26_integration PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+    )
+    target_link_libraries(test_xzh26_integration PRIVATE
+        xzh26_protocol xzh26_crypto xzh26_cryptotools mpsi_core ${SODIUM_LIB})
+    add_test(NAME xzh26_integration COMMAND test_xzh26_integration)
+
+    # gRPC integration test (3 parties over gRPC with optional mTLS)
+    add_executable(test_xzh26_grpc protocols/xzh26/test_xzh26_grpc_integration.cpp)
+    target_include_directories(test_xzh26_grpc PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+    )
+    target_link_libraries(test_xzh26_grpc PRIVATE
+        xzh26_protocol xzh26_crypto xzh26_cryptotools mpsi_core mpsi_proto ${SODIUM_LIB})
+    add_test(NAME xzh26_grpc COMMAND test_xzh26_grpc)
+    add_test(NAME xzh26_grpc_tls COMMAND test_xzh26_grpc --tls
+        --certs-dir "${CMAKE_CURRENT_SOURCE_DIR}/../certs/test")
+endif()
+
 # === YYH26 TT-MPSI Tests ===
 if(MPSI_BUILD_YYH26)
     add_executable(test_yyh26_tt_mpsi protocols/yyh26/test_tt_mpsi.cpp)
