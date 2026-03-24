@@ -1,87 +1,40 @@
-# MP-PSI
+# XZH26 EC-ElGamal Bloom OPPRF MPSI
 
+EC-ElGamal based multi-party private set intersection using Bloom filters and oblivious programmable pseudo-random functions (OPPRF).
 
-## Installations
+## Dependencies
 
-### Required libraries
-- Boost
+- Boost (system, thread)
 - GMP
 - NTL
-- Miracl
+- libsodium (Ristretto255 elliptic curve operations)
+- cryptoTools (shared from `experiments/yyh26/upstream/`)
 
-### Building the Project
-After cloning project from git,
-##### Linux:
-1. Install Boost
+## Building
 
-   ```
-   % wget -O boost_1_81_0.tar.gz https://sourceforge.net/projects/boost/files/boost/1.81.0/boost_1_81_0.tar.gz/download
-   % tar xzvf boost_1_81_0.tar.gz
-   % cd boost_1_81_0/
-   % sudo apt-get install build-essential autoconf
-   % ./bootstrap.sh --prefix=/usr/
-   % ./b2
-   % sudo ./b2 install
-   ```
+```bash
+# Ensure yyh26 upstream submodule is initialized (provides cryptoTools)
+git submodule update --init experiments/yyh26/upstream
 
-2. Install GMP
-
-   ```
-   % wget https://gmplib.org/download/gmp/gmp-6.2.1.tar.xz
-   % tar -xvf gmp-6.2.1.tar.xz
-   % cd gmp-6.2.1
-   % ./configure
-   % make
-   % make check
-   % sudo make install
-   ```
-
-3. Install NTL
-
-   ```
-   % wget https://libntl.org/ntl-11.5.1.tar.gz
-   % tar -xvzf ntl-11.5.1.tar.gz
-   % cd ntl-11.5.1/src
-   % ./configure 
-   % make
-   % make check
-   % sudo make install
-   ```
-
-4. Install Miracl
-
-   ```
-   % cd thirdparty/linux/miracl/miracl/source/
-   % bash linux64
-   % cd ../../../miracl/miracl_osmt/source/
-   % bash linux64_cpp
-   ```
-
-   
-
-5. Install others
-
-   ```
-   sudo apt-get install cmake nasm
-   ```
-
-   
-
-
-## Running the code
+cd experiments/xzh26
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
 ```
-1. clone this repository
-2. cd `this repository`
-3. install dependencies
-4. cmake .
-5. make 
-6. bash ./tools/run_benchmark.sh 
-(or 7.) ./bin/frontend.exe -n 5 -m 11 -p 0 & ./bin/frontend.exe -n 5 -m 11 -p 1 & ./bin/frontend.exe -n 5 -m 11 -p 2 & ./bin/frontend.exe -n 5 -m 11 -p 3 & ./bin/frontend.exe -n 5 -m 11 -p 4 &
 
+## Running
+
+Run each party in a separate terminal:
+
+```bash
+# 3 parties with set size 2^8 = 256
+./bin/frontend.exe -n 3 -m 8 -p 0   # party 0 (client)
+./bin/frontend.exe -n 3 -m 8 -p 1   # party 1 (client)
+./bin/frontend.exe -n 3 -m 8 -p 2   # party 2 (leader)
 ```
 
 **Flags:**
 
-    -n		number of parties
-    -m		set size		
-    -p		party ID
+    -n    number of parties
+    -m    log2 of set size
+    -p    party ID (0 to n-2 are clients, n-1 is leader)
