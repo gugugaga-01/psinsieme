@@ -2,6 +2,7 @@
 #include "Crypto/sha1.h"
 #include "Crypto/PRNG.h"
 #include <random>
+#include <algorithm>
 #include "Common/Log.h"
 #include "Common/Log1.h"
 #include <numeric>

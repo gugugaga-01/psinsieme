@@ -8,11 +8,8 @@ using namespace std;
 using namespace osuCrypto;
 
 #include "OtBinMain.h"
-//#include "bitPosition.h"
-
 #include <numeric>
 #include "Common/Log.h"
-//int miraclTestMain();
 
 
 void usage(const char* argv0)

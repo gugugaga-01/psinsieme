@@ -180,24 +180,19 @@ namespace osuCrypto
             mBins = other.mBins;
             mStashBins = other.mStashBins;
             mStashIdxs = other.mStashIdxs;
-            mHashesView.deepcopy( other.mHashesView);
-            mStashHashesView.deepcopy(other.mStashHashesView);
-
-            // 复制 mInsertBin 的内容
-            mInsertBin.lock();
-            mInsertBin.unlock();
+            // Rebuild views from our copied data
+            if (!mHashes.empty())
+                mHashesView = MatrixView<u64>(mHashes.begin(), mHashes.end(), other.mHashesView.size()[1]);
+            if (!mStashHashes.empty())
+                mStashHashesView = MatrixView<u64>(mStashHashes.begin(), mStashHashes.end(), other.mStashHashesView.size()[1]);
         }
 
-
-
-        CuckooHasher1& operator=(const CuckooHasher1& other) 
+        CuckooHasher1& operator=(const CuckooHasher1& other)
         {
-            if (this != &other) 
-            { // 避免自我赋值
-            // 深度复制成员变量
+            if (this != &other)
+            {
                 mTotalTries = other.mTotalTries;
                 mParams = other.mParams;
-                //mHashSeed = other.mHashSeed;
                 mRepSize = other.mRepSize;
                 mInputBitSize = other.mInputBitSize;
                 mN = other.mN;
@@ -207,12 +202,10 @@ namespace osuCrypto
                 mBins = other.mBins;
                 mStashBins = other.mStashBins;
                 mStashIdxs = other.mStashIdxs;
-                mHashesView.deepcopy( other.mHashesView);
-                mStashHashesView .deepcopy(other.mStashHashesView);
-
-                // 复制 mInsertBin 的内容
-                mInsertBin.lock();
-                mInsertBin.unlock();
+                if (!mHashes.empty())
+                    mHashesView = MatrixView<u64>(mHashes.begin(), mHashes.end(), other.mHashesView.size()[1]);
+                if (!mStashHashes.empty())
+                    mStashHashesView = MatrixView<u64>(mStashHashes.begin(), mStashHashes.end(), other.mStashHashesView.size()[1]);
             }
             return *this;
         }

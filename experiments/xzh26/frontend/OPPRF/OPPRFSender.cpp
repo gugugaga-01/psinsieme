@@ -1,14 +1,10 @@
 #include "OPPRFSender.h"
 
+#include <algorithm>
 #include "Crypto/Commit.h"
 #include "Common/Log.h"
 #include "Common/Log1.h"
 #include "Common/Timer.h"
-//#include "Base/naor-pinkas.h"      libOTe
-//#include "TwoChooseOne/IknpOtExtReceiver.h"
-//#include "TwoChooseOne/IknpOtExtSender.h"
-
-//#define PRINT
 namespace osuCrypto
 {
 

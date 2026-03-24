@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.8)
 
-project("libPSI")
+project("xzh26-EC-MPSI")
 
 
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/bin)
@@ -12,6 +12,7 @@ set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/lib)
 #            Flag and #defines              #
 #############################################
 add_definitions(-DSOLUTION_DIR=\"${CMAKE_SOURCE_DIR}\")
+add_definitions(-DNO_INTEL_ASM_SHA1=1)
 set(CMAKE_C_FLAGS "-ffunction-sections -Wall  -maes -msse2 -msse4.1 -mpclmul -Wfatal-errors -pthread")
 set(CMAKE_CXX_FLAGS  "${CMAKE_C_FLAGS}  -std=c++14")
 
@@ -35,75 +36,43 @@ SET(CMAKE_CXX_FLAGS_DEBUG  "-O0 -g")
 #       Library/includes locations          #
 #############################################
 
-# default location for libOTe
-#set(libOTe_Dirs "${CMAKE_SOURCE_DIR}/libOTe/")
-#include_directories("${libOTe_Dirs}/libOTe/") 
-#link_directories("${libOTe_Dirs}/lib/")
+set(CRYPTOTOOLS_DIR "${CMAKE_SOURCE_DIR}/../yyh26/upstream/cryptoTools")
 
-# default location for miracl
-set(Miracl_Dirs "${CMAKE_SOURCE_DIR}/thirdparty/linux/miracl/")
-include_directories("${Miracl_Dirs}") 
+# Miracl (required by cryptoTools)
+set(Miracl_Dirs "${CMAKE_SOURCE_DIR}/../yyh26/upstream/thirdparty/linux/miracl/")
+include_directories("${Miracl_Dirs}")
 link_directories("${Miracl_Dirs}/miracl/source/")
 
-# default location for NTL
-#set(NTL_Dirs "${CMAKE_SOURCE_DIR}/thirdparty/linux/ntl/")
-#include_directories("${NTL_Dirs}/include/")
-#link_directories("${NTL_Dirs}/src/") 
-
-#NTL
+# NTL
 set(NTL_Dirs "/usr/local")
 include_directories("${NTL_Dirs}/include/")
 link_directories("${NTL_Dirs}/lib/")
 
-# default location for libsodium
+# libsodium
 set(SODIUM_Dirs "/usr/local")
-include_directories("${SODIUM_Dirs}/include")  # 头文件在 /usr/local/include/sodium.h
-link_directories("${SODIUM_Dirs}/lib")        # 库文件在 /usr/local/lib/libsodium.*
+include_directories("${SODIUM_Dirs}/include")
+link_directories("${SODIUM_Dirs}/lib")
 
-include_directories(/usr/include/botan-2)
-message(STATUS "Include directories: ${CMAKE_INCLUDE_PATH}")
-
-
-
-# default location for Boost
-#set(BOOST_ROOT "${CMAKE_SOURCE_DIR}/thirdparty/linux/boost/")
-
+# Boost
 find_package(Boost REQUIRED COMPONENTS system thread)
 
 #############################################
 #            Build cryptoTools              #
 #############################################
-add_subdirectory(cryptoTools)
-include_directories(cryptoTools)
+# Build cryptoTools as a library from yyh26 upstream sources.
+# We compile it here instead of add_subdirectory() because the
+# upstream CMakeLists has CMAKE_SOURCE_DIR-relative asm paths
+# that break when used as a subdirectory.
+file(GLOB_RECURSE CRYPTOTOOLS_SRCS "${CRYPTOTOOLS_DIR}/*.cpp")
+include_directories("${CRYPTOTOOLS_DIR}")
 
-#############################################
-#               Build libOTe                #
-#############################################
-#add_subdirectory(libOTe)
-#include_directories(libOTe)
+find_library(MIRACL_LIB NAMES miracl HINTS "${Miracl_Dirs}/miracl/source/")
 
-
-#############################################
-#               Build libOPRF                 #
-#############################################
-#add_subdirectory(libOPRF)
-#include_directories(libOPRF)
-
-
-#############################################
-#           Build libPSI Tests              #
-#############################################
-#add_subdirectory(libPSI_Tests)
-#include_directories(libPSI_Tests)
-
+add_library(cryptoTools ${CRYPTOTOOLS_SRCS})
+target_include_directories(cryptoTools PUBLIC "${CRYPTOTOOLS_DIR}")
+target_link_libraries(cryptoTools ${MIRACL_LIB} ${Boost_LIBRARIES})
 
 #############################################
 #              Build Frontend               #
 #############################################
 add_subdirectory(frontend)
-
-#############################################
-#            Build tools/gen_prime          #
-#############################################
-#add_subdirectory(tools/gen_prime)
-

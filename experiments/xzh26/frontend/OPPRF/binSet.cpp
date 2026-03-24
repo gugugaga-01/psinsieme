@@ -6,13 +6,8 @@
 
 #include "Common/Log.h"
 #include "Common/Log1.h"
-//#include "Base/naor-pinkas.h"
 #include <unordered_map>
-
-//#include "TwoChooseOne/IknpOtExtReceiver.h"
-//#include "TwoChooseOne/IknpOtExtSender.h"
 #include "Hashing/BitPosition.h"
-//#define PRINT
 namespace osuCrypto
 {
 	binSet::binSet()
