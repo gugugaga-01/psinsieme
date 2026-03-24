@@ -8,12 +8,7 @@ using namespace osuCrypto;
 #include "util.h"
 
 #include "Common/Defines.h"
-//#include "NChooseOne/KkrtNcoOtReceiver.h" //libOTe
-//#include "NChooseOne/KkrtNcoOtSender.h"
-
-//#include "NChooseOne/Oos/OosNcoOtReceiver.h" //libOTe
-//#include "NChooseOne/Oos/OosNcoOtSender.h"
-#include "Common/Log.h"  //cryptoTools
+#include "Common/Log.h"
 #include "Common/Log1.h"
 #include "Common/Timer.h"
 #include "Crypto/PRNG.h"
@@ -28,57 +23,11 @@ using namespace osuCrypto;
 #include <cstring>
 #include <sodium.h>
 
-//typedef std::pair<NTL::ZZ, NTL::ZZ> Ciphertext;
-//using ECpoint = std::array<unsigned char, crypto_core_ristretto255_BYTES>;
-//using Ciphertext = std::pair<ECpoint, ECpoint>;
-
-// 标量类型
-//using ECscalar = std::array<unsigned char, crypto_core_ristretto255_SCALARBYTES>;
-
-// 定义单位元（0 元素）即O
-//const ECpoint ZERO_POINT = {0};  // 全0数组，加法单位元
-
 #define ZZtoBytesSize 256
 
 const size_t SEED_BYTES = 16;
 
-//std::vector<NTL::ZZ> get_factors(const NTL::ZZ& p) {
-//    std::vector<NTL::ZZ> factors;
-//    factors.push_back(NTL::ZZ(2)); 
-//    NTL::ZZ large_prime = (p - 1) / 2;
-//    factors.push_back(large_prime);
-//    return factors;
-//}
-//gcd(k,p) ?= 1
-//bool CoprimeWithP(const NTL::ZZ &k, const NTL::ZZ &p)
-//{
-//    std::vector<NTL::ZZ> factors;
-//    factors = get_factors(p);
-//    for (const NTL::ZZ& factor : factors)
-//    {
-//        if(k % factor == 0 || factor % k == 0)
-//        {
-//            return false;
-//        }
-//    }
-//    return true;
-//}
-
-//void Encrypt(Ciphertext &ciphertext, const NTL::ZZ &plaintext, NTL::ZZ alpha, NTL::ZZ beta, NTL::ZZ p) 
-//{
-//  NTL::ZZ random_num;
-//  RandomBnd(random_num, p);
-  // gcd(random_num,p-1) = 1 & (3<=random_num <=p-2)
-//  while (!CoprimeWithP(random_num, p) || random_num < 3 || random_num > p - 1 ) 
-//  {
-//    random_num += 1;
-//  }
-//  PowerMod(ciphertext.first, alpha, random_num, p);
-//  PowerMod(ciphertext.second, beta, random_num, p);
-//  MulMod(ciphertext.second, ciphertext.second, plaintext, p);
-//}
-
-//ElGamal加密，B是公钥点
+// ElGamal encryption: B is the public key point
 void Encrypt(Ciphertext &cipher, const ECpoint &plaintext, const ECpoint &B) 
 {
     // 1. 生成随机标量 r
@@ -91,24 +40,13 @@ void Encrypt(Ciphertext &cipher, const ECpoint &plaintext, const ECpoint &B)
     cipher.second = point_add(temp, plaintext);
 }
 
-//void Mul(Ciphertext &dest, const Ciphertext &src1, const Ciphertext &src2, NTL::ZZ p)
-//{
-//  MulMod(dest.first, src1.first, src2.first, p);
-//  MulMod(dest.second, src1.second, src2.second, p);
-//}
-
-// 密文同态加法：对应点相加
+// Homomorphic ciphertext addition: add corresponding points
 void Homo_Add(Ciphertext &dest, const Ciphertext &src1, const Ciphertext &src2) 
 {
     dest.first = point_add(src1.first, src2.first);
     dest.second = point_add(src1.second, src2.second);
 }
 
-
-//void PartialDecrypt(NTL::ZZ &decryption_share, const NTL::ZZ &c1 , NTL::ZZ a, NTL::ZZ p)
-//{
-//  PowerMod(decryption_share, c1, -a, p);
-//}
 
 void PartialDecrypt(ECpoint &decryption_share, const ECpoint &c1, const ECscalar &a) {
     // 计算 neg_a = -a
@@ -118,15 +56,6 @@ void PartialDecrypt(ECpoint &decryption_share, const ECpoint &c1, const ECscalar
     // 注意：如果结果为单位元，scalar_mul会返回错误
     // 但在ElGamal解密中，这种情况概率极低
 }
-
-//void FullyDecrypt(NTL::ZZ &plaintext, const std::vector<NTL::ZZ> &decryption_shares, const NTL::ZZ &c2, NTL::ZZ p) 
-//{
-//  plaintext = c2;
-//  for (const auto &it : decryption_shares) 
-//  {
-//    MulMod(plaintext, plaintext, it, p);
-//  }
-//}
 
 void FullyDecrypt(ECpoint &plaintext, const std::vector<ECpoint> &decryption_shares, const ECpoint &c2) 
 {
@@ -167,34 +96,7 @@ std::vector<ECpoint> setblock_to_points(const std::vector<block>& setBlock) {
     return points;
 }
 
-/*void bytesToBlocks(const unsigned char* bytes, size_t length, std::vector<block>& blocks) 
-{
-	 if (length % 16 != 0) 
-     {
-        std::cout << "Error: Length is not a multiple of 16." << std::endl;
-        return;
-    }
-    size_t numBlocks = length / 16;
-    blocks.resize(numBlocks);
-
-    for (size_t i = 0; i < numBlocks; ++i) 
-    {
-        blocks[i] = _mm_loadu_si128(reinterpret_cast<const block*>(bytes + i * 16));
-    }
-}//在OPPRF阶段调用
-
-void blocksToBytes(const std::vector<block>& blocks, unsigned char* bytes) 
-{
-    size_t numBlocks = blocks.size();
-    size_t bytesLength = numBlocks * sizeof(block);
-
-    memcpy(bytes, blocks.data(), bytesLength);
-}//在decrypt阶段调用，将解密份额转换为字节数组
-*/
-
-
-
-//leader is n-1
+// leader is n-1
 //myIdx: 当前参与方的索引（0 到 nParties-1）
 //nParties: 总参与方数量
 //setSize: 每个参与方的集合大小
