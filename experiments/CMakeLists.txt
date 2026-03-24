@@ -38,3 +38,6 @@ endif()
 if(BUILD_YYH26)
     add_subdirectory(yyh26)
 endif()
+
+# XZH26 has its own standalone CMake build system (see experiments/xzh26/README.md).
+# It depends on yyh26/upstream/cryptoTools and builds separately.

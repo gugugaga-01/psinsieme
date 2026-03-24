@@ -46,10 +46,18 @@ experiments/yyh26/libOLE/src/lib/
 experiments/yyh26/libOLE/third_party/cryptoTools/
 experiments/yyh26/libOLE/bin/
 
-# YYH26 runtime artifacts
+# Runtime output artifacts
+runtime_*.txt
+time_*.txt
+
+# YYH26 third-party inputs
 experiments/yyh26/input/
-experiments/yyh26/runtime_*.txt
-experiments/yyh26/time_*.txt
+
+# CTest temporary files
+Testing/
+
+# Generated docs
+docs/
 
 # Claude Code
 CLAUDE.md
