@@ -22,7 +22,7 @@ else
     openssl req -x509 -newkey rsa:2048 -sha256 -days 30 -nodes \
         -keyout "$CERTS_DIR/server-key.pem" \
         -out "$CERTS_DIR/server.pem" \
-        -subj "/CN=localhost/O=MPSI/C=US" \
+        -subj "/CN=localhost/O=psinsieme/C=US" \
         -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
         2>/dev/null
 

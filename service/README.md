@@ -82,7 +82,7 @@ bash service/demos/yyh26/demo.sh
 Pull the pre-built image:
 
 ```bash
-docker pull gugugaga001/multiparty-psi:latest
+docker pull gugugaga001/psinsieme:latest
 ```
 
 ### Local 3-party demo (auto-generated TLS certs)
@@ -93,13 +93,13 @@ docker network create psi-net
 
 # Start the dealer (KS05 key distribution)
 docker run -d --name dealer --network psi-net \
-  gugugaga001/multiparty-psi \
+  gugugaga001/psinsieme \
   psi_dealer --parties 3 --listen 0.0.0.0:53050
 
 # Start 3 parties
 for i in 0 1 2; do
   docker run -d --name "party${i}" --network psi-net \
-    gugugaga001/multiparty-psi \
+    gugugaga001/psinsieme \
     psi_party --address "party${i}:5300${i}" \
     --addresses "$(echo 0 1 2 | tr ' ' '\n' | grep -v $i | sed "s/\(.*\)/party\1:5300\1/" | paste -sd,)" \
     --dealer dealer:53050 --listen "0.0.0.0:5009${i}"
@@ -115,7 +115,7 @@ Mount your certificate directory to `/app/certs/`:
 ```bash
 docker run -d --name party0 --network psi-net \
   -v /path/to/certs:/app/certs:ro \
-  gugugaga001/multiparty-psi \
+  gugugaga001/psinsieme \
   psi_party --address party0:53000 \
   --addresses party1:53001,party2:53002 \
   --dealer dealer:53050 --listen 0.0.0.0:50090
@@ -135,7 +135,7 @@ Override the default mode with `--tls-mode`:
 
 ```bash
 docker run -d --name party0 --network psi-net \
-  gugugaga001/multiparty-psi \
+  gugugaga001/psinsieme \
   psi_party --address party0:53000 \
   --addresses party1:53001,party2:53002 \
   --tls-mode insecure --listen 0.0.0.0:50090

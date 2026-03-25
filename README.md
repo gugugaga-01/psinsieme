@@ -1,4 +1,4 @@
-# multiparty-psi-protocols-experimental
+# psinsieme
 
 Experimental implementations of multi-party Private Set Intersection (PSI) protocols for research and evaluation.
 
@@ -123,7 +123,7 @@ Binaries are produced under `build/experiments/<protocol>/`.
 ## Structure
 
 ```
-multiparty-psi-protocols-experimental/
+psinsieme/
 ├── experiments/          # Academic reference implementations (plaintext TCP)
 │   ├── shared/          # Shared crypto (paillier, defines, logger)
 │   ├── ks05/            # Kissner-Song CRYPTO'05 T-MPSI
